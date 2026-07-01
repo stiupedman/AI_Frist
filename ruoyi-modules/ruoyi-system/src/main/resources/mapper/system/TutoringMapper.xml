@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.TutoringMapper">
+
+    <resultMap id="TutorProfileResult" type="TutorProfile">
+        <id property="profileId" column="profile_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="university" column="university"/>
+        <result property="major" column="major"/>
+        <result property="collegeYear" column="college_year"/>
+        <result property="subjects" column="subjects"/>
+        <result property="hourlyRate" column="hourly_rate"/>
+        <result property="introduction" column="introduction"/>
+        <result property="verifyStatus" column="verify_status"/>
+        <result property="verifyRemark" column="verify_remark"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <resultMap id="TutoringRequestResult" type="TutoringRequest">
+        <id property="requestId" column="request_id"/>
+        <result property="publisherId" column="publisher_id"/>
+        <result property="publisherName" column="publisher_name"/>
+        <result property="learnerGrade" column="learner_grade"/>
+        <result property="subject" column="subject"/>
+        <result property="area" column="area"/>
+        <result property="scheduleText" column="schedule_text"/>
+        <result property="hourlyBudget" column="hourly_budget"/>
+        <result property="requirementText" column="requirement_text"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <resultMap id="TutoringMatchResult" type="TutoringMatch">
+        <id property="matchId" column="match_id"/>
+        <result property="requestId" column="request_id"/>
+        <result property="tutorId" column="tutor_id"/>
+        <result property="tutorName" column="tutor_name"/>
+        <result property="publisherId" column="publisher_id"/>
+        <result property="subject" column="subject"/>
+        <result property="quotedRate" column="quoted_rate"/>
+        <result property="applicationText" column="application_text"/>
+        <result property="status" column="status"/>
+        <result property="rating" column="rating"/>
+        <result property="reviewText" column="review_text"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="profileColumns">
+        p.profile_id, p.user_id, u.nick_name user_name, p.university, p.major,
+        p.college_year, p.subjects, p.hourly_rate, p.introduction,
+        p.verify_status, p.verify_remark, p.create_time, p.update_time
+    </sql>
+
+    <select id="selectProfileByUserId" resultMap="TutorProfileResult">
+        select <include refid="profileColumns"/>
+        from tutor_profile p left join sys_user u on u.user_id = p.user_id
+        where p.user_id = #{userId}
+    </select>
+
+    <select id="selectPendingProfiles" resultMap="TutorProfileResult">
+        select <include refid="profileColumns"/>
+        from tutor_profile p left join sys_user u on u.user_id = p.user_id
+        where p.verify_status = '0'
+        order by p.update_time asc, p.create_time asc
+    </select>
+
+    <insert id="insertProfile" useGeneratedKeys="true" keyProperty="profileId">
+        insert into tutor_profile
+        (user_id, university, major, college_year, subjects, hourly_rate, introduction,
+         verify_status, create_by, create_time)
+        values
+        (#{userId}, #{university}, #{major}, #{collegeYear}, #{subjects}, #{hourlyRate},
+         #{introduction}, '0', #{createBy}, sysdate())
+    </insert>
+
+    <update id="updateProfile">
+        update tutor_profile
+        set university = #{university}, major = #{major}, college_year = #{collegeYear},
+            subjects = #{subjects}, hourly_rate = #{hourlyRate}, introduction = #{introduction},
+            verify_status = '0', verify_remark = '', update_by = #{updateBy}, update_time = sysdate()
+        where user_id = #{userId}
+    </update>
+
+    <update id="verifyProfile">
+        update tutor_profile
+        set verify_status = #{verifyStatus}, verify_remark = #{verifyRemark},
+            update_by = #{updateBy}, update_time = sysdate()
+        where profile_id = #{profileId} and verify_status = '0'
+    </update>
+
+    <sql id="requestColumns">
+        r.request_id, r.publisher_id, u.nick_name publisher_name, r.learner_grade,
+        r.subject, r.area, r.schedule_text, r.hourly_budget, r.requirement_text,
+        r.status, r.create_time, r.update_time
+    </sql>
+
+    <select id="selectOpenRequests" resultMap="TutoringRequestResult">
+        select <include refid="requestColumns"/>
+        from tutoring_request r left join sys_user u on u.user_id = r.publisher_id
+        where r.status = '0'
+        order by r.create_time desc
+    </select>
+
+    <select id="selectRequestsByPublisherId" resultMap="TutoringRequestResult">
+        select <include refid="requestColumns"/>
+        from tutoring_request r left join sys_user u on u.user_id = r.publisher_id
+        where r.publisher_id = #{publisherId}
+        order by r.create_time desc
+    </select>
+
+    <select id="selectRequestById" resultMap="TutoringRequestResult">
+        select <include refid="requestColumns"/>
+        from tutoring_request r left join sys_user u on u.user_id = r.publisher_id
+        where r.request_id = #{requestId}
+    </select>
+
+    <insert id="insertRequest" useGeneratedKeys="true" keyProperty="requestId">
+        insert into tutoring_request
+        (publisher_id, learner_grade, subject, area, schedule_text, hourly_budget,
+         requirement_text, status, create_by, create_time)
+        values
+        (#{publisherId}, #{learnerGrade}, #{subject}, #{area}, #{scheduleText},
+         #{hourlyBudget}, #{requirementText}, '0', #{createBy}, sysdate())
+    </insert>
+
+    <update id="updateRequestStatusIfCurrent">
+        update tutoring_request
+        set status = #{target}, update_by = #{updateBy}, update_time = sysdate()
+        where request_id = #{requestId} and status = #{current}
+    </update>
+
+    <sql id="matchColumns">
+        m.match_id, m.request_id, m.tutor_id, tutor.nick_name tutor_name,
+        r.publisher_id, r.subject, m.quoted_rate, m.application_text,
+        m.status, m.rating, m.review_text, m.create_time, m.update_time
+    </sql>
+
+    <select id="selectMatchById" resultMap="TutoringMatchResult">
+        select <include refid="matchColumns"/>
+        from tutoring_match m
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        where m.match_id = #{matchId}
+    </select>
+
+    <select id="selectMatchesByUserId" resultMap="TutoringMatchResult">
+        select <include refid="matchColumns"/>
+        from tutoring_match m
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        where m.tutor_id = #{userId} or r.publisher_id = #{userId}
+        order by m.create_time desc
+    </select>
+
+    <select id="countMatch" resultType="int">
+        select count(1) from tutoring_match
+        where request_id = #{requestId} and tutor_id = #{tutorId}
+    </select>
+
+    <insert id="insertMatch" useGeneratedKeys="true" keyProperty="matchId">
+        insert into tutoring_match
+        (request_id, tutor_id, quoted_rate, application_text, status, create_by, create_time)
+        values
+        (#{requestId}, #{tutorId}, #{quotedRate}, #{applicationText}, '0', #{createBy}, sysdate())
+    </insert>
+
+    <update id="updateMatchStatusIfCurrent">
+        update tutoring_match
+        set status = #{target}, update_by = #{updateBy}, update_time = sysdate()
+        where match_id = #{matchId} and status = #{current}
+    </update>
+
+    <update id="rejectOtherMatches">
+        update tutoring_match
+        set status = '3', update_by = #{updateBy}, update_time = sysdate()
+        where request_id = #{requestId} and match_id != #{acceptedMatchId} and status = '0'
+    </update>
+
+    <update id="reviewMatch">
+        update tutoring_match
+        set rating = #{rating}, review_text = #{reviewText},
+            update_by = #{updateBy}, update_time = sysdate()
+        where match_id = #{matchId} and status = '2' and rating is null
+    </update>
+</mapper>

@@ -17,6 +17,7 @@ public class TutoringMatch extends BaseEntity
     private Long tutorId;
     private String tutorName;
     private Long publisherId;
+    private String publisherName;
     private String subject;
     private BigDecimal quotedRate;
     private String applicationText;
@@ -34,6 +35,8 @@ public class TutoringMatch extends BaseEntity
     public void setTutorName(String tutorName) { this.tutorName = tutorName; }
     public Long getPublisherId() { return publisherId; }
     public void setPublisherId(Long publisherId) { this.publisherId = publisherId; }
+    public String getPublisherName() { return publisherName; }
+    public void setPublisherName(String publisherName) { this.publisherName = publisherName; }
     public String getSubject() { return subject; }
     public void setSubject(String subject) { this.subject = subject; }
 

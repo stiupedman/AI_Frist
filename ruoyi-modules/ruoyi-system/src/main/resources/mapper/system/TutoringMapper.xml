@@ -88,6 +88,7 @@
         <result property="tutorId" column="tutor_id"/>
         <result property="tutorName" column="tutor_name"/>
         <result property="publisherId" column="publisher_id"/>
+        <result property="publisherName" column="publisher_name"/>
         <result property="subject" column="subject"/>
         <result property="quotedRate" column="quoted_rate"/>
         <result property="applicationText" column="application_text"/>
@@ -126,6 +127,19 @@
         from tutor_profile p left join sys_user u on u.user_id = p.user_id
         where p.verify_status = '0'
         order by p.update_time asc, p.create_time asc
+    </select>
+
+    <select id="selectVerifiedTutors" resultMap="TutorProfileResult">
+        select <include refid="profileColumns"/>
+        from tutor_profile p left join sys_user u on u.user_id = p.user_id
+        where p.verify_status = '1'
+        <if test="subjects != null and subjects != ''">
+            and p.subjects like concat('%', #{subjects}, '%')
+        </if>
+        <if test="university != null and university != ''">
+            and p.university like concat('%', #{university}, '%')
+        </if>
+        order by average_rating desc, completed_orders desc, p.update_time desc, p.create_time desc
     </select>
 
     <insert id="insertProfile" useGeneratedKeys="true" keyProperty="profileId">
@@ -181,6 +195,25 @@
         order by r.create_time desc
     </select>
 
+    <select id="selectAllRequests" resultMap="TutoringRequestResult">
+        select <include refid="requestColumns"/>
+        from tutoring_request r left join sys_user u on u.user_id = r.publisher_id
+        where 1 = 1
+        <if test="subject != null and subject != ''">
+            and r.subject like concat('%', #{subject}, '%')
+        </if>
+        <if test="learnerGrade != null and learnerGrade != ''">
+            and r.learner_grade like concat('%', #{learnerGrade}, '%')
+        </if>
+        <if test="area != null and area != ''">
+            and r.area like concat('%', #{area}, '%')
+        </if>
+        <if test="status != null and status != ''">
+            and r.status = #{status}
+        </if>
+        order by r.create_time desc
+    </select>
+
     <select id="selectRequestsByPublisherId" resultMap="TutoringRequestResult">
         select <include refid="requestColumns"/>
         from tutoring_request r left join sys_user u on u.user_id = r.publisher_id
@@ -217,7 +250,7 @@
 
     <sql id="matchColumns">
         m.match_id, m.request_id, m.tutor_id, tutor.nick_name tutor_name,
-        r.publisher_id, r.subject, m.quoted_rate, m.application_text,
+        r.publisher_id, publisher.nick_name publisher_name, r.subject, m.quoted_rate, m.application_text,
         m.status, m.rating, m.review_text, m.create_time, m.update_time
     </sql>
 
@@ -226,6 +259,7 @@
         from tutoring_match m
         join tutoring_request r on r.request_id = m.request_id
         left join sys_user tutor on tutor.user_id = m.tutor_id
+        left join sys_user publisher on publisher.user_id = r.publisher_id
         where m.match_id = #{matchId}
     </select>
 
@@ -234,7 +268,24 @@
         from tutoring_match m
         join tutoring_request r on r.request_id = m.request_id
         left join sys_user tutor on tutor.user_id = m.tutor_id
+        left join sys_user publisher on publisher.user_id = r.publisher_id
         where m.tutor_id = #{userId} or r.publisher_id = #{userId}
+        order by m.create_time desc
+    </select>
+
+    <select id="selectAllMatches" resultMap="TutoringMatchResult">
+        select <include refid="matchColumns"/>
+        from tutoring_match m
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        left join sys_user publisher on publisher.user_id = r.publisher_id
+        where 1 = 1
+        <if test="subject != null and subject != ''">
+            and r.subject like concat('%', #{subject}, '%')
+        </if>
+        <if test="status != null and status != ''">
+            and m.status = #{status}
+        </if>
         order by m.create_time desc
     </select>
 

@@ -1,0 +1,11 @@
+const assert = require('assert')
+const { resolveWorkbenchRole, getWorkbenchConfig } = require('./roleConfig.cjs')
+
+assert.strictEqual(resolveWorkbenchRole(['client', 'admin']), 'admin')
+assert.deepStrictEqual(getWorkbenchConfig('admin').toolbar, ['refresh'])
+assert.ok(getWorkbenchConfig('admin').tabs.includes('dashboard'))
+assert.ok(!getWorkbenchConfig('admin').tabs.includes('open'))
+assert.ok(getWorkbenchConfig('client').tabs.includes('tutors'))
+assert.ok(!getWorkbenchConfig('client').tabs.includes('open'))
+assert.ok(getWorkbenchConfig('tutor', { tutorVerified: true }).tabs.includes('open'))
+assert.deepStrictEqual(getWorkbenchConfig('tutor', { tutorVerified: false }).tabs, ['profile'])

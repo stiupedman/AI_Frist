@@ -44,6 +44,16 @@ public class TutoringService
         return mapper.selectPendingProfiles();
     }
 
+    public List<TutorProfile> getVerifiedTutors(TutorProfile query)
+    {
+        List<TutorProfile> profiles = mapper.selectVerifiedTutors(query);
+        profiles.forEach(profile -> {
+            profile.setStudentCardUrl(null);
+            profile.setQualificationUrl(null);
+        });
+        return profiles;
+    }
+
     public int saveProfile(TutorProfile profile, Long userId, String username)
     {
         profile.setUserId(userId);
@@ -89,6 +99,11 @@ public class TutoringService
         return mapper.selectOpenRequests(query);
     }
 
+    public List<TutoringRequest> getAdminRequests(TutoringRequest query)
+    {
+        return mapper.selectAllRequests(query);
+    }
+
     public List<TutoringRequest> getMyRequests(Long userId)
     {
         return mapper.selectRequestsByPublisherId(userId);
@@ -124,6 +139,11 @@ public class TutoringService
     public List<TutoringMatch> getMyMatches(Long userId)
     {
         return mapper.selectMatchesByUserId(userId);
+    }
+
+    public List<TutoringMatch> getAdminMatches(TutoringMatch query)
+    {
+        return mapper.selectAllMatches(query);
     }
 
     @Transactional(rollbackFor = Exception.class)

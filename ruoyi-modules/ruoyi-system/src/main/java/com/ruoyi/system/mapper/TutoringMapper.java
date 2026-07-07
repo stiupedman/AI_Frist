@@ -19,6 +19,8 @@ public interface TutoringMapper
 
     List<TutorProfile> selectPendingProfiles();
 
+    List<TutorProfile> selectVerifiedTutors(TutorProfile query);
+
     int insertProfile(TutorProfile profile);
 
     int updateProfile(TutorProfile profile);
@@ -26,6 +28,8 @@ public interface TutoringMapper
     int verifyProfile(TutorProfile profile);
 
     List<TutoringRequest> selectOpenRequests(TutoringRequest query);
+
+    List<TutoringRequest> selectAllRequests(TutoringRequest query);
 
     List<TutoringRequest> selectRequestsByPublisherId(Long publisherId);
 
@@ -42,6 +46,8 @@ public interface TutoringMapper
     TutoringMatch selectMatchById(Long matchId);
 
     List<TutoringMatch> selectMatchesByUserId(Long userId);
+
+    List<TutoringMatch> selectAllMatches(TutoringMatch query);
 
     int countMatch(@Param("requestId") Long requestId, @Param("tutorId") Long tutorId);
 

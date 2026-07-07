@@ -63,6 +63,14 @@ public class TutoringController extends BaseController
         return getDataTable(service.getPendingProfiles());
     }
 
+    @RequiresPermissions("tutoring:tutor:list")
+    @GetMapping("/tutors")
+    public TableDataInfo tutors(TutorProfile query)
+    {
+        startPage();
+        return getDataTable(service.getVerifiedTutors(query));
+    }
+
     @RequiresPermissions("tutoring:profile:verify")
     @Log(title = "教员审核", businessType = BusinessType.UPDATE)
     @PutMapping("/profiles/{profileId}/verify")
@@ -79,6 +87,14 @@ public class TutoringController extends BaseController
         startPage();
         List<TutoringRequest> list = service.getOpenRequests(query);
         return getDataTable(list);
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @GetMapping("/admin/requests")
+    public TableDataInfo adminRequests(TutoringRequest query)
+    {
+        startPage();
+        return getDataTable(service.getAdminRequests(query));
     }
 
     @RequiresPermissions("tutoring:request:add")
@@ -111,6 +127,14 @@ public class TutoringController extends BaseController
     {
         startPage();
         return getDataTable(service.getMyMatches(SecurityUtils.getUserId()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @GetMapping("/admin/matches")
+    public TableDataInfo adminMatches(TutoringMatch query)
+    {
+        startPage();
+        return getDataTable(service.getAdminMatches(query));
     }
 
     @RequiresPermissions("tutoring:match:apply")

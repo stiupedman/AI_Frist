@@ -73,3 +73,10 @@ CREATE TABLE tutoring_invitation (
   KEY idx_invitation_tutor (tutor_id, status, create_time),
   KEY idx_invitation_publisher (publisher_id, create_time)
 ) ENGINE=InnoDB COMMENT='家教预约邀请';
+
+INSERT IGNORE INTO sys_menu VALUES
+  (2011, '查找教员', 2001, 10, '', '', '', '', 1, 0, 'F', '0', '0', 'tutoring:tutor:list', '#', 'admin', sysdate(), '', null, ''),
+  (2012, '业务监管', 2001, 11, '', '', '', '', 1, 0, 'F', '0', '0', 'tutoring:business:monitor', '#', 'admin', sysdate(), '', null, '');
+
+DELETE FROM sys_role_menu WHERE role_id = 101 AND menu_id = 2004;
+INSERT IGNORE INTO sys_role_menu VALUES (101, 2011);

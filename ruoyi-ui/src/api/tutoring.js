@@ -16,12 +16,20 @@ export function listPendingProfiles() {
   return request({ url: '/system/tutoring/profiles/pending', method: 'get' })
 }
 
+export function listVerifiedTutors(params) {
+  return request({ url: '/system/tutoring/tutors', method: 'get', params })
+}
+
 export function verifyProfile(profileId, data) {
   return request({ url: `/system/tutoring/profiles/${profileId}/verify`, method: 'put', data })
 }
 
 export function listOpenRequests(params) {
   return request({ url: '/system/tutoring/requests/open', method: 'get', params })
+}
+
+export function listAdminRequests(params) {
+  return request({ url: '/system/tutoring/admin/requests', method: 'get', params })
 }
 
 export function listMyRequests() {
@@ -38,6 +46,10 @@ export function cancelRequest(requestId) {
 
 export function listMyMatches() {
   return request({ url: '/system/tutoring/matches/mine', method: 'get' })
+}
+
+export function listAdminMatches(params) {
+  return request({ url: '/system/tutoring/admin/matches', method: 'get', params })
 }
 
 export function applyRequest(requestId, data) {

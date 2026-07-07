@@ -22,6 +22,10 @@ public class TutorProfile extends BaseEntity
     private String introduction;
     private String verifyStatus;
     private String verifyRemark;
+    private Long completedOrders;
+    private BigDecimal averageRating;
+    private String studentCardUrl;
+    private String qualificationUrl;
 
     public Long getProfileId() { return profileId; }
     public void setProfileId(Long profileId) { this.profileId = profileId; }
@@ -62,4 +66,14 @@ public class TutorProfile extends BaseEntity
     public void setVerifyStatus(String verifyStatus) { this.verifyStatus = verifyStatus; }
     public String getVerifyRemark() { return verifyRemark; }
     public void setVerifyRemark(String verifyRemark) { this.verifyRemark = verifyRemark; }
+    public Long getCompletedOrders() { return completedOrders; }
+    public void setCompletedOrders(Long completedOrders) { this.completedOrders = completedOrders; }
+    public BigDecimal getAverageRating() { return averageRating; }
+    public void setAverageRating(BigDecimal averageRating) { this.averageRating = averageRating; }
+    @Size(max = 500, message = "学生证图片地址长度不能超过500个字符")
+    public String getStudentCardUrl() { return studentCardUrl; }
+    public void setStudentCardUrl(String studentCardUrl) { this.studentCardUrl = studentCardUrl; }
+    @Size(max = 500, message = "资格证图片地址长度不能超过500个字符")
+    public String getQualificationUrl() { return qualificationUrl; }
+    public void setQualificationUrl(String qualificationUrl) { this.qualificationUrl = qualificationUrl; }
 }

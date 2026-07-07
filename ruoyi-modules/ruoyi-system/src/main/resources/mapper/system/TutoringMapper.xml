@@ -15,6 +15,53 @@
         <result property="introduction" column="introduction"/>
         <result property="verifyStatus" column="verify_status"/>
         <result property="verifyRemark" column="verify_remark"/>
+        <result property="completedOrders" column="completed_orders"/>
+        <result property="averageRating" column="average_rating"/>
+        <result property="studentCardUrl" column="student_card_url"/>
+        <result property="qualificationUrl" column="qualification_url"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <resultMap id="TutoringLessonResult" type="TutoringLesson">
+        <id property="lessonId" column="lesson_id"/>
+        <result property="matchId" column="match_id"/>
+        <result property="lessonDate" column="lesson_date"/>
+        <result property="hours" column="hours"/>
+        <result property="content" column="content"/>
+        <result property="amount" column="amount"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <resultMap id="TutoringComplaintResult" type="TutoringComplaint">
+        <id property="complaintId" column="complaint_id"/>
+        <result property="matchId" column="match_id"/>
+        <result property="complainantId" column="complainant_id"/>
+        <result property="complainantName" column="complainant_name"/>
+        <result property="subject" column="subject"/>
+        <result property="reason" column="reason"/>
+        <result property="status" column="status"/>
+        <result property="handleRemark" column="handle_remark"/>
+        <result property="handleBy" column="handle_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <resultMap id="TutoringInvitationResult" type="TutoringInvitation">
+        <id property="invitationId" column="invitation_id"/>
+        <result property="publisherId" column="publisher_id"/>
+        <result property="publisherName" column="publisher_name"/>
+        <result property="tutorId" column="tutor_id"/>
+        <result property="tutorName" column="tutor_name"/>
+        <result property="learnerGrade" column="learner_grade"/>
+        <result property="subject" column="subject"/>
+        <result property="area" column="area"/>
+        <result property="scheduleText" column="schedule_text"/>
+        <result property="offeredRate" column="offered_rate"/>
+        <result property="message" column="message"/>
+        <result property="status" column="status"/>
+        <result property="createBy" column="create_by"/>
         <result property="createTime" column="create_time"/>
         <result property="updateTime" column="update_time"/>
     </resultMap>
@@ -32,6 +79,7 @@
         <result property="status" column="status"/>
         <result property="createTime" column="create_time"/>
         <result property="updateTime" column="update_time"/>
+        <result property="matchScore" column="match_score"/>
     </resultMap>
 
     <resultMap id="TutoringMatchResult" type="TutoringMatch">
@@ -53,13 +101,24 @@
     <sql id="profileColumns">
         p.profile_id, p.user_id, u.nick_name user_name, p.university, p.major,
         p.college_year, p.subjects, p.hourly_rate, p.introduction,
-        p.verify_status, p.verify_remark, p.create_time, p.update_time
+        p.verify_status, p.verify_remark, p.student_card_url, p.qualification_url,
+        p.create_time, p.update_time,
+        (select count(*) from tutoring_match tm
+         where tm.tutor_id = p.user_id and tm.status = '2') completed_orders,
+        (select round(avg(tm.rating), 1) from tutoring_match tm
+         where tm.tutor_id = p.user_id and tm.rating is not null) average_rating
     </sql>
 
     <select id="selectProfileByUserId" resultMap="TutorProfileResult">
         select <include refid="profileColumns"/>
         from tutor_profile p left join sys_user u on u.user_id = p.user_id
         where p.user_id = #{userId}
+    </select>
+
+    <select id="selectProfileById" resultMap="TutorProfileResult">
+        select <include refid="profileColumns"/>
+        from tutor_profile p left join sys_user u on u.user_id = p.user_id
+        where p.profile_id = #{profileId}
     </select>
 
     <select id="selectPendingProfiles" resultMap="TutorProfileResult">
@@ -72,16 +131,17 @@
     <insert id="insertProfile" useGeneratedKeys="true" keyProperty="profileId">
         insert into tutor_profile
         (user_id, university, major, college_year, subjects, hourly_rate, introduction,
-         verify_status, create_by, create_time)
+         student_card_url, qualification_url, verify_status, create_by, create_time)
         values
         (#{userId}, #{university}, #{major}, #{collegeYear}, #{subjects}, #{hourlyRate},
-         #{introduction}, '0', #{createBy}, sysdate())
+         #{introduction}, #{studentCardUrl}, #{qualificationUrl}, '0', #{createBy}, sysdate())
     </insert>
 
     <update id="updateProfile">
         update tutor_profile
         set university = #{university}, major = #{major}, college_year = #{collegeYear},
             subjects = #{subjects}, hourly_rate = #{hourlyRate}, introduction = #{introduction},
+            student_card_url = #{studentCardUrl}, qualification_url = #{qualificationUrl},
             verify_status = '0', verify_remark = '', update_by = #{updateBy}, update_time = sysdate()
         where user_id = #{userId}
     </update>
@@ -103,6 +163,21 @@
         select <include refid="requestColumns"/>
         from tutoring_request r left join sys_user u on u.user_id = r.publisher_id
         where r.status = '0'
+        <if test="subject != null and subject != ''">
+            and r.subject like concat('%', #{subject}, '%')
+        </if>
+        <if test="learnerGrade != null and learnerGrade != ''">
+            and r.learner_grade like concat('%', #{learnerGrade}, '%')
+        </if>
+        <if test="area != null and area != ''">
+            and r.area like concat('%', #{area}, '%')
+        </if>
+        <if test="minBudget != null">
+            and r.hourly_budget &gt;= #{minBudget}
+        </if>
+        <if test="maxBudget != null">
+            and r.hourly_budget &lt;= #{maxBudget}
+        </if>
         order by r.create_time desc
     </select>
 
@@ -132,6 +207,12 @@
         update tutoring_request
         set status = #{target}, update_by = #{updateBy}, update_time = sysdate()
         where request_id = #{requestId} and status = #{current}
+    </update>
+
+    <update id="cancelOpenMatches">
+        update tutoring_match
+        set status = '4', update_by = #{updateBy}, update_time = sysdate()
+        where request_id = #{requestId} and status = '0'
     </update>
 
     <sql id="matchColumns">
@@ -186,5 +267,181 @@
         set rating = #{rating}, review_text = #{reviewText},
             update_by = #{updateBy}, update_time = sysdate()
         where match_id = #{matchId} and status = '2' and rating is null
+    </update>
+
+    <select id="selectDashboardStats" resultType="map">
+        select count(*) totalRequests,
+               coalesce(sum(status = '0'), 0) openRequests,
+               coalesce(sum(status in ('1', '2')), 0) matchedRequests,
+               coalesce(sum(status = '2'), 0) completedRequests,
+               coalesce(round(sum(status in ('1', '2')) * 100.0 / nullif(count(*), 0), 1), 0) matchRate,
+               (select count(*) from tutor_profile where verify_status = '1') verifiedTutors,
+               coalesce((select round(avg(rating), 1) from tutoring_match where rating is not null), 0) averageRating
+        from tutoring_request
+    </select>
+
+    <select id="selectTopSubjects" resultType="map">
+        select subject, count(*) requestCount
+        from tutoring_request
+        group by subject
+        order by requestCount desc, subject asc
+        limit 5
+    </select>
+
+    <select id="selectLessonsByMatchId" resultMap="TutoringLessonResult">
+        select lesson_id, match_id, lesson_date, hours, content, amount, create_by, create_time
+        from tutoring_lesson
+        where match_id = #{matchId}
+        order by lesson_date desc, lesson_id desc
+    </select>
+
+    <insert id="insertLesson" useGeneratedKeys="true" keyProperty="lessonId">
+        insert into tutoring_lesson
+        (match_id, lesson_date, hours, content, amount, create_by, create_time)
+        values
+        (#{matchId}, #{lessonDate}, #{hours}, #{content}, #{amount}, #{createBy}, sysdate())
+    </insert>
+
+    <insert id="insertNotification">
+        insert into tutoring_notification (user_id, title, content, read_status, create_time)
+        values (#{userId}, #{title}, #{content}, '0', sysdate())
+    </insert>
+
+    <select id="selectNotificationsByUserId" resultType="TutoringNotification">
+        select notification_id notificationId, user_id userId, title, content,
+               read_status readStatus, create_time createTime
+        from tutoring_notification
+        where user_id = #{userId}
+        order by create_time desc
+        limit 100
+    </select>
+
+    <update id="readNotification">
+        update tutoring_notification set read_status = '1'
+        where notification_id = #{notificationId} and user_id = #{userId}
+    </update>
+
+    <select id="selectOpenMatchTutorIds" resultType="long">
+        select tutor_id from tutoring_match where request_id = #{requestId} and status = '0'
+    </select>
+
+    <insert id="insertComplaint" useGeneratedKeys="true" keyProperty="complaintId">
+        insert ignore into tutoring_complaint
+        (match_id, complainant_id, reason, status, create_time)
+        values (#{matchId}, #{complainantId}, #{reason}, '0', sysdate())
+    </insert>
+
+    <sql id="complaintColumns">
+        c.complaint_id, c.match_id, c.complainant_id, u.nick_name complainant_name,
+        r.subject, c.reason, c.status, c.handle_remark, c.handle_by,
+        c.create_time, c.update_time
+    </sql>
+
+    <select id="selectComplaintsByUserId" resultMap="TutoringComplaintResult">
+        select <include refid="complaintColumns"/>
+        from tutoring_complaint c
+        join tutoring_match m on m.match_id = c.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user u on u.user_id = c.complainant_id
+        where c.complainant_id = #{userId}
+        order by c.create_time desc
+    </select>
+
+    <select id="selectComplaints" resultMap="TutoringComplaintResult">
+        select <include refid="complaintColumns"/>
+        from tutoring_complaint c
+        join tutoring_match m on m.match_id = c.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user u on u.user_id = c.complainant_id
+        order by c.status asc, c.create_time desc
+    </select>
+
+    <select id="selectComplaintById" resultMap="TutoringComplaintResult">
+        select <include refid="complaintColumns"/>
+        from tutoring_complaint c
+        join tutoring_match m on m.match_id = c.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user u on u.user_id = c.complainant_id
+        where c.complaint_id = #{complaintId}
+    </select>
+
+    <update id="handleComplaint">
+        update tutoring_complaint
+        set status = #{status}, handle_remark = #{handleRemark}, handle_by = #{handleBy},
+            update_time = sysdate()
+        where complaint_id = #{complaintId} and status = '0'
+    </update>
+
+    <select id="selectRecommendedRequests" resultMap="TutoringRequestResult">
+        <!-- ponytail: 简单规则推荐；数据量和匹配维度增加后再换独立推荐服务。 -->
+        select <include refid="requestColumns"/>,
+               (case when p.subjects like concat('%', r.subject, '%') then 60 else 0 end
+                + case when r.hourly_budget &gt;= p.hourly_rate then 30 else 10 end
+                + case when datediff(sysdate(), r.create_time) &lt;= 7 then 10 else 0 end) match_score
+        from tutoring_request r
+        left join sys_user u on u.user_id = r.publisher_id
+        join tutor_profile p on p.user_id = #{tutorId} and p.verify_status = '1'
+        where r.status = '0'
+          and not exists (select 1 from tutoring_match m
+                          where m.request_id = r.request_id and m.tutor_id = #{tutorId})
+        order by match_score desc, r.create_time desc
+        limit 20
+    </select>
+
+    <insert id="insertFavorite">
+        insert ignore into tutor_favorite (user_id, tutor_id, create_time)
+        values (#{userId}, #{tutorId}, sysdate())
+    </insert>
+
+    <delete id="deleteFavorite">
+        delete from tutor_favorite where user_id = #{userId} and tutor_id = #{tutorId}
+    </delete>
+
+    <select id="selectFavoriteTutors" resultMap="TutorProfileResult">
+        select <include refid="profileColumns"/>
+        from tutor_favorite f
+        join tutor_profile p on p.user_id = f.tutor_id and p.verify_status = '1'
+        left join sys_user u on u.user_id = p.user_id
+        where f.user_id = #{userId}
+        order by f.create_time desc
+    </select>
+
+    <insert id="insertInvitation" useGeneratedKeys="true" keyProperty="invitationId">
+        insert into tutoring_invitation
+        (publisher_id, tutor_id, learner_grade, subject, area, schedule_text,
+         offered_rate, message, status, create_by, create_time)
+        values
+        (#{publisherId}, #{tutorId}, #{learnerGrade}, #{subject}, #{area}, #{scheduleText},
+         #{offeredRate}, #{message}, '0', #{createBy}, sysdate())
+    </insert>
+
+    <sql id="invitationColumns">
+        i.invitation_id, i.publisher_id, publisher.nick_name publisher_name,
+        i.tutor_id, tutor.nick_name tutor_name, i.learner_grade, i.subject,
+        i.area, i.schedule_text, i.offered_rate, i.message, i.status,
+        i.create_by, i.create_time, i.update_time
+    </sql>
+
+    <select id="selectInvitationsByUserId" resultMap="TutoringInvitationResult">
+        select <include refid="invitationColumns"/>
+        from tutoring_invitation i
+        left join sys_user publisher on publisher.user_id = i.publisher_id
+        left join sys_user tutor on tutor.user_id = i.tutor_id
+        where i.publisher_id = #{userId} or i.tutor_id = #{userId}
+        order by i.create_time desc
+    </select>
+
+    <select id="selectInvitationById" resultMap="TutoringInvitationResult">
+        select <include refid="invitationColumns"/>
+        from tutoring_invitation i
+        left join sys_user publisher on publisher.user_id = i.publisher_id
+        left join sys_user tutor on tutor.user_id = i.tutor_id
+        where i.invitation_id = #{invitationId}
+    </select>
+
+    <update id="updateInvitationStatusIfCurrent">
+        update tutoring_invitation
+        set status = #{target}, update_by = #{updateBy}, update_time = sysdate()
+        where invitation_id = #{invitationId} and status = '0'
     </update>
 </mapper>

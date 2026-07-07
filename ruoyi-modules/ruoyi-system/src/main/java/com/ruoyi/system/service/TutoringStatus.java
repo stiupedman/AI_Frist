@@ -7,11 +7,13 @@ public final class TutoringStatus
     public static final String REQUEST_OPEN = "0";
     public static final String REQUEST_MATCHED = "1";
     public static final String REQUEST_COMPLETED = "2";
+    public static final String REQUEST_CANCELLED = "3";
 
     public static final String MATCH_APPLIED = "0";
     public static final String MATCH_ACCEPTED = "1";
     public static final String MATCH_COMPLETED = "2";
     public static final String MATCH_REJECTED = "3";
+    public static final String MATCH_CANCELLED = "4";
 
     private TutoringStatus()
     {
@@ -36,12 +38,14 @@ public final class TutoringStatus
     static boolean canRequestTransition(String current, String target)
     {
         return REQUEST_OPEN.equals(current) && REQUEST_MATCHED.equals(target)
+            || REQUEST_OPEN.equals(current) && REQUEST_CANCELLED.equals(target)
             || REQUEST_MATCHED.equals(current) && REQUEST_COMPLETED.equals(target);
     }
 
     static boolean canMatchTransition(String current, String target)
     {
         return MATCH_APPLIED.equals(current) && (MATCH_ACCEPTED.equals(target) || MATCH_REJECTED.equals(target))
+            || MATCH_APPLIED.equals(current) && MATCH_CANCELLED.equals(target)
             || MATCH_ACCEPTED.equals(current) && MATCH_COMPLETED.equals(target);
     }
 
@@ -49,7 +53,9 @@ public final class TutoringStatus
     {
         assert canRequestTransition(REQUEST_OPEN, REQUEST_MATCHED);
         assert !canRequestTransition(REQUEST_OPEN, REQUEST_COMPLETED);
+        assert canRequestTransition(REQUEST_OPEN, REQUEST_CANCELLED);
         assert canMatchTransition(MATCH_APPLIED, MATCH_ACCEPTED);
+        assert canMatchTransition(MATCH_APPLIED, MATCH_CANCELLED);
         assert !canMatchTransition(MATCH_REJECTED, MATCH_ACCEPTED);
     }
 }

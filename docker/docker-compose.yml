@@ -29,6 +29,7 @@ services:
       - ../sql/ry_20260417.sql:/docker-entrypoint-initdb.d/01-ry-cloud.sql:ro
       - ../sql/ry_config_20260611.sql:/docker-entrypoint-initdb.d/02-ry-config.sql:ro
       - ../sql/tutoring.sql:/docker-entrypoint-initdb.d/03-tutoring.sql:ro
+      - ../sql/tutoring_features.sql:/docker-entrypoint-initdb.d/04-tutoring-features.sql:ro
     command: [
           'mysqld',
           '--innodb-buffer-pool-size=80M',

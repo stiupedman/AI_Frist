@@ -1,14 +1,14 @@
 <template>
-  <div :class="classObj" class="app-wrapper" :style="{'--current-color': theme, '--current-color-light': theme + '1a', '--current-color-dark-bg': theme + '33'}">
+  <div :class="[classObj, { 'workbench-borderless': borderlessWorkbench }]" class="app-wrapper" :style="{'--current-color': theme, '--current-color-light': theme + '1a', '--current-color-dark-bg': theme + '33'}">
     <div v-if="device==='mobile'&&sidebar.opened" class="drawer-bg" @click="handleClickOutside"/>
-    <sidebar v-if="!sidebar.hide" class="sidebar-container"/>
-    <div :class="{hasTagsView:needTagsView,sidebarHide:sidebar.hide}" class="main-container">
-      <div :class="{'fixed-header':fixedHeader}">
+    <sidebar v-if="!sidebar.hide && !borderlessWorkbench" class="sidebar-container"/>
+    <div :class="{hasTagsView:needTagsView && !borderlessWorkbench, sidebarHide:sidebar.hide || borderlessWorkbench}" class="main-container">
+      <div v-if="!borderlessWorkbench" :class="{'fixed-header':fixedHeader}">
         <navbar @setLayout="setLayout"/>
         <tags-view v-if="needTagsView"/>
       </div>
       <app-main/>
-      <settings ref="settingRef"/>
+      <settings v-if="!borderlessWorkbench" ref="settingRef"/>
     </div>
   </div>
 </template>
@@ -48,6 +48,9 @@ export default {
     },
     variables() {
       return variables
+    },
+    borderlessWorkbench() {
+      return (this.$route.path || '').indexOf('/tutoring/workbench') === 0
     }
   },
   methods: {
@@ -80,6 +83,11 @@ export default {
   .main-container:has(.fixed-header) {
     height: 100vh;
     overflow: hidden;
+  }
+
+  .workbench-borderless .main-container {
+    margin-left: 0 !important;
+    height: 100vh;
   }
 
   .drawer-bg {

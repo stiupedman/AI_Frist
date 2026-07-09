@@ -1,33 +1,122 @@
 <template>
-  <div class="app-container">
-    <el-row :gutter="10" class="mb8">
-      <el-col :span="1.5">
-        <el-button v-if="toolbarVisible('publish')" type="primary" plain icon="el-icon-plus" size="mini"
-          v-hasPermi="['tutoring:request:add']" @click="requestDialog = true">发布家教需求</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button v-if="toolbarVisible('profile')" type="success" plain icon="el-icon-user" size="mini"
-          v-hasPermi="['tutoring:profile:edit']" @click="openProfile">维护教员资料</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button v-if="toolbarVisible('refresh')" icon="el-icon-refresh" size="mini" @click="loadCurrentTab">刷新</el-button>
-      </el-col>
-    </el-row>
-
+  <div class="app-container tutoring-page">
     <el-alert v-if="!workbenchRole" title="当前账号没有可用的家教工作台角色" type="warning" :closable="false" />
 
-    <el-tabs v-else v-model="activeTab" type="border-card" @tab-click="loadCurrentTab">
+    <div v-else class="workbench-shell">
+      <div class="workbench-hero">
+        <div class="hero-copy">
+          <div class="role-chip"><i :class="roleMeta.icon" />{{ roleMeta.role }}</div>
+          <h2>{{ roleMeta.title }}</h2>
+          <p>{{ roleMeta.subtitle }}</p>
+        </div>
+        <div class="hero-actions">
+          <el-button v-if="toolbarVisible('publish')" type="primary" icon="el-icon-plus" size="small"
+            v-hasPermi="['tutoring:request:add']" @click="requestDialog = true">发布需求</el-button>
+          <el-button v-if="toolbarVisible('profile')" type="success" icon="el-icon-user" size="small"
+            v-hasPermi="['tutoring:profile:edit']" @click="openProfile">维护资料</el-button>
+          <el-button v-if="toolbarVisible('refresh')" icon="el-icon-refresh" size="small" @click="loadAll">刷新数据</el-button>
+          <el-dropdown class="workbench-account" trigger="click">
+            <button type="button" class="account-button">
+              <img :src="userAvatar" alt="头像" />
+              <span>{{ userNickName }}</span>
+              <i class="el-icon-arrow-down" />
+            </button>
+            <el-dropdown-menu slot="dropdown">
+              <el-dropdown-item @click.native="goProfile">个人中心</el-dropdown-item>
+              <el-dropdown-item @click.native="lockScreen">锁定屏幕</el-dropdown-item>
+              <el-dropdown-item divided @click.native="logout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </el-dropdown>
+        </div>
+      </div>
+
+      <el-row :gutter="12" class="metric-row">
+        <el-col v-for="item in roleMetricCards" :key="item.label" :xs="12" :sm="8" :lg="4">
+          <div class="metric-card" :class="{ 'is-warning': item.warning }">
+            <i :class="item.icon" />
+            <div>
+              <div class="metric-value">{{ item.value }}</div>
+              <div class="metric-label">{{ item.label }}</div>
+              <div class="metric-note">{{ item.note }}</div>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+
+      <div class="module-switcher">
+        <button v-for="item in workbenchNavItems" :key="item.name" type="button" class="module-tab"
+          :class="{ active: activeTab === item.name }" @click="switchTab(item.name)">
+          <i :class="item.icon" />
+          <span>{{ item.label }}</span>
+          <em v-if="item.badge">{{ item.badge }}</em>
+        </button>
+      </div>
+
+      <section class="workbench-content">
+        <div class="content-header">
+          <div>
+            <h3>{{ activeNav.label }}</h3>
+            <p>{{ activeNav.desc }}</p>
+          </div>
+          <el-button icon="el-icon-refresh" size="mini" @click="loadCurrentTab">刷新当前</el-button>
+        </div>
+
+        <el-tabs v-model="activeTab" class="workbench-tabs" @tab-click="loadCurrentTab">
       <el-tab-pane v-if="tabVisible('profile')" label="教员资料" name="profile">
         <el-alert :closable="false" :title="profileVerifyText" :type="profileForm.verifyStatus === '1' ? 'success' : 'warning'" />
+        <el-alert class="mt12" :closable="false" :title="'资料完整度 ' + profileCompleteness + '%'" type="info" />
         <el-descriptions :column="2" border class="mt12">
           <el-descriptions-item label="学校">{{ profileForm.university || '-' }}</el-descriptions-item>
           <el-descriptions-item label="专业">{{ profileForm.major || '-' }}</el-descriptions-item>
           <el-descriptions-item label="年级">{{ profileForm.collegeYear || '-' }}</el-descriptions-item>
           <el-descriptions-item label="擅长科目">{{ profileForm.subjects || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="可授课时间">{{ profileForm.availabilityText || '-' }}</el-descriptions-item>
           <el-descriptions-item label="期望课时费">{{ profileForm.hourlyRate ? '￥' + profileForm.hourlyRate + '/小时' : '-' }}</el-descriptions-item>
           <el-descriptions-item label="审核意见">{{ profileForm.verifyRemark || '-' }}</el-descriptions-item>
         </el-descriptions>
         <el-button type="primary" size="mini" class="mt12" @click="openProfile">维护资料并提交审核</el-button>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('availability')" label="授课日历" name="availability">
+        <el-form :inline="true" :model="availabilityForm" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="星期">
+            <el-select v-model="availabilityForm.weekDay" class="status-select">
+              <el-option v-for="day in ['1','2','3','4','5','6','7']" :key="day" :label="weekDayText(day)" :value="day" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="开始"><el-time-picker v-model="availabilityForm.startTime" value-format="HH:mm" format="HH:mm" placeholder="开始时间" /></el-form-item>
+          <el-form-item label="结束"><el-time-picker v-model="availabilityForm.endTime" value-format="HH:mm" format="HH:mm" placeholder="结束时间" /></el-form-item>
+          <el-form-item label="备注"><el-input v-model="availabilityForm.remark" clearable placeholder="如：仅线上" /></el-form-item>
+          <el-form-item><el-button type="primary" icon="el-icon-plus" @click="addAvailabilityRow">添加时段</el-button></el-form-item>
+        </el-form>
+        <el-table :data="availabilityRows">
+          <el-table-column label="星期" width="100"><template slot-scope="scope">{{ weekDayText(scope.row.weekDay) }}</template></el-table-column>
+          <el-table-column label="开始" prop="startTime" width="100" />
+          <el-table-column label="结束" prop="endTime" width="100" />
+          <el-table-column label="备注" prop="remark" />
+          <el-table-column label="操作" width="90">
+            <template slot-scope="scope"><el-button type="text" class="text-danger" @click="removeAvailabilityRow(scope.row)">删除</el-button></template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('learners')" label="学员档案" name="learners">
+        <div class="table-toolbar"><el-button type="primary" size="small" icon="el-icon-plus" @click="openLearner()">新增学员</el-button></div>
+        <el-table :data="learnerRows">
+          <el-table-column label="姓名" prop="learnerName" width="100" />
+          <el-table-column label="年级" prop="grade" width="100" />
+          <el-table-column label="学校" prop="school" min-width="120" />
+          <el-table-column label="薄弱科目" prop="weakSubjects" min-width="140" />
+          <el-table-column label="目标" prop="targetScore" min-width="120" />
+          <el-table-column label="可上课时间" prop="availableTime" min-width="160" show-overflow-tooltip />
+          <el-table-column label="备注" prop="remark" min-width="160" show-overflow-tooltip />
+          <el-table-column label="操作" width="130">
+            <template slot-scope="scope">
+              <el-button type="text" @click="openLearner(scope.row)">编辑</el-button>
+              <el-button type="text" class="text-danger" @click="removeLearner(scope.row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </el-tab-pane>
 
       <el-tab-pane v-if="tabVisible('tutors')" label="找教员" name="tutors">
@@ -120,10 +209,12 @@
           <el-table-column label="状态" width="90">
             <template slot-scope="scope">{{ requestStatus(scope.row.status) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="90" align="center">
+          <el-table-column label="操作" width="140" align="center">
             <template slot-scope="scope">
               <el-button v-if="scope.row.status === '0' && actionVisible('requests', 'cancel')" size="mini" type="text" class="text-danger"
                 @click="cancelOwnRequest(scope.row)">取消</el-button>
+              <el-button v-if="actionVisible('requests', 'copy')" size="mini" type="text"
+                @click="copyOwnRequest(scope.row)">复制</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -144,13 +235,19 @@
           <el-table-column label="状态" width="90">
             <template slot-scope="scope">{{ matchStatus(scope.row.status) }}</template>
           </el-table-column>
+          <el-table-column label="试听" width="150">
+            <template slot-scope="scope">
+              <span>{{ trialStatus(scope.row.trialStatus) }}</span>
+              <span v-if="scope.row.trialTime"> {{ scope.row.trialTime }}</span>
+            </template>
+          </el-table-column>
           <el-table-column label="评价" min-width="140">
             <template slot-scope="scope">
               <span v-if="scope.row.rating">{{ scope.row.rating }}星 {{ scope.row.reviewText }}</span>
               <span v-else>-</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="260" align="center">
+          <el-table-column label="操作" width="540" align="center">
             <template slot-scope="scope">
               <el-button v-if="scope.row.status === '0' && actionVisible('matches', 'accept')" size="mini" type="text"
                 v-hasPermi="['tutoring:match:accept']" @click="accept(scope.row)">接受</el-button>
@@ -162,6 +259,20 @@
                 v-hasPermi="['tutoring:match:review']" @click="openReview(scope.row)">评价</el-button>
               <el-button v-if="(scope.row.status === '1' || scope.row.status === '2') && actionVisible('matches', 'lessons')" size="mini" type="text"
                 @click="openLessons(scope.row)">课程记录</el-button>
+              <el-button v-if="(scope.row.status === '1' || scope.row.status === '2') && actionVisible('matches', 'materials')" size="mini" type="text"
+                @click="openMaterials(scope.row)">资料</el-button>
+              <el-button v-if="(scope.row.status === '1' || scope.row.status === '2') && actionVisible('matches', 'messages')" size="mini" type="text"
+                @click="openMessages(scope.row)">沟通</el-button>
+              <el-button v-if="(scope.row.status === '1' || scope.row.status === '2') && actionVisible('matches', 'payments')" size="mini" type="text"
+                @click="openPayments(scope.row)">付款</el-button>
+              <el-button v-if="scope.row.status === '1' && actionVisible('matches', 'trial')" size="mini" type="text"
+                @click="openTrial(scope.row)">安排试听</el-button>
+              <el-button v-if="scope.row.status === '1' && scope.row.trialStatus === '1' && actionVisible('matches', 'trial')" size="mini" type="text"
+                @click="completeTrialRow(scope.row)">完成试听</el-button>
+              <el-button v-if="scope.row.status === '1' && actionVisible('matches', 'reschedule')" size="mini" type="text"
+                @click="rescheduleAcceptedMatch(scope.row)">改期</el-button>
+              <el-button v-if="scope.row.status === '1' && actionVisible('matches', 'cancel')" size="mini" type="text" class="text-danger"
+                @click="cancelAcceptedMatch(scope.row)">取消订单</el-button>
               <el-button v-if="(scope.row.status === '1' || scope.row.status === '2') && actionVisible('matches', 'complaint')" size="mini" type="text" class="text-danger"
                 @click="openComplaint(scope.row)">投诉</el-button>
             </template>
@@ -169,7 +280,28 @@
         </el-table>
       </el-tab-pane>
 
+      <el-tab-pane v-if="tabVisible('announcements')" label="平台公告" name="announcements">
+        <el-table :data="announcementRows">
+          <el-table-column label="标题" prop="title" width="180" />
+          <el-table-column label="内容" prop="content" min-width="260" show-overflow-tooltip />
+          <el-table-column label="发布时间" prop="publishTime" width="170" />
+        </el-table>
+      </el-tab-pane>
+
       <el-tab-pane v-if="tabVisible('notifications')" label="消息通知" name="notifications">
+        <el-form :inline="true" :model="notificationQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="状态">
+            <el-select v-model="notificationQuery.readStatus" clearable placeholder="全部" class="status-select">
+              <el-option label="未读" value="0" />
+              <el-option label="已读" value="1" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="类型"><el-input v-model="notificationQuery.title" clearable placeholder="标题关键词" /></el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="loadNotifications">查询</el-button>
+            <el-button icon="el-icon-check" @click="markAllRead">全部已读 {{ unreadNotifications }}</el-button>
+          </el-form-item>
+        </el-form>
         <el-table :data="notifications">
           <el-table-column label="状态" width="80">
             <template slot-scope="scope"><el-tag :type="scope.row.readStatus === '1' ? 'info' : 'danger'" size="mini">{{ scope.row.readStatus === '1' ? '已读' : '未读' }}</el-tag></template>
@@ -183,6 +315,31 @@
         </el-table>
       </el-tab-pane>
 
+      <el-tab-pane v-if="tabVisible('settlements')" label="收入结算" name="settlements">
+        <el-table :data="settlementRows">
+          <el-table-column label="订单" prop="matchId" width="80" />
+          <el-table-column label="科目" prop="subject" width="100" />
+          <el-table-column label="课时" prop="lessonId" width="90" />
+          <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="状态" width="90"><template slot-scope="scope">{{ settlementStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="结算人" prop="settleBy" width="100" />
+          <el-table-column label="结算时间" prop="settleTime" width="170" />
+          <el-table-column label="生成时间" prop="createTime" width="170" />
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('tickets')" label="客服工单" name="tickets">
+        <div class="table-toolbar"><el-button type="primary" size="small" icon="el-icon-plus" @click="openTicket">提交工单</el-button></div>
+        <el-table :data="ticketRows">
+          <el-table-column label="标题" prop="title" width="180" />
+          <el-table-column label="问题描述" prop="content" min-width="220" show-overflow-tooltip />
+          <el-table-column label="状态" width="90"><template slot-scope="scope">{{ ticketStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="处理意见" prop="handleRemark" min-width="180" show-overflow-tooltip />
+          <el-table-column label="处理人" prop="handleBy" width="100" />
+          <el-table-column label="提交时间" prop="createTime" width="170" />
+        </el-table>
+      </el-tab-pane>
+
       <el-tab-pane v-if="tabVisible('complaints')" :label="complaintsLabel" name="complaints">
         <el-table :data="complaints">
           <el-table-column label="订单" prop="matchId" width="80" />
@@ -193,6 +350,7 @@
             <template slot-scope="scope">{{ complaintStatus(scope.row.status) }}</template>
           </el-table-column>
           <el-table-column label="处理意见" prop="handleRemark" />
+          <el-table-column label="处理记录" prop="handleTimeline" min-width="220" show-overflow-tooltip />
           <el-table-column v-if="actionVisible('complaints', 'handle')" label="操作" width="130">
             <template slot-scope="scope">
               <el-button v-if="scope.row.status === '0'" type="text" @click="handleComplaintRow(scope.row, '1')">解决</el-button>
@@ -240,6 +398,78 @@
         </el-table>
       </el-tab-pane>
 
+      <el-tab-pane v-if="tabVisible('businessClients')" label="家长管理" name="businessClients">
+        <el-form :inline="true" :model="adminClientQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="账号/昵称"><el-input v-model="adminClientQuery.userName" clearable placeholder="账号或昵称" /></el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="adminClientQuery.status" clearable placeholder="全部" class="status-select">
+              <el-option label="正常" value="0" />
+              <el-option label="停用" value="1" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="searchAdminClients">查询</el-button>
+            <el-button icon="el-icon-refresh" @click="resetAdminClients">重置</el-button>
+            <el-button icon="el-icon-download" @click="handleAdminExport('clients', adminClientQuery)">导出</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminClients">
+          <el-table-column label="账号" prop="userName" width="120" />
+          <el-table-column label="昵称" prop="nickName" width="120" />
+          <el-table-column label="手机" prop="phonenumber" width="130" />
+          <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
+          <el-table-column label="状态" width="80"><template slot-scope="scope">{{ userStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="业务统计" prop="remark" min-width="180" />
+          <el-table-column label="创建时间" prop="createTime" width="170" />
+          <el-table-column label="操作" width="90">
+            <template slot-scope="scope">
+              <el-button type="text" @click="changeBusinessUserStatus(scope.row.userId, scope.row.status)">
+                {{ scope.row.status === '0' ? '停用' : '启用' }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessTutors')" label="教员管理" name="businessTutors">
+        <el-form :inline="true" :model="adminTutorQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="姓名"><el-input v-model="adminTutorQuery.userName" clearable placeholder="账号或昵称" /></el-form-item>
+          <el-form-item label="学校"><el-input v-model="adminTutorQuery.university" clearable placeholder="学校名称" /></el-form-item>
+          <el-form-item label="科目"><el-input v-model="adminTutorQuery.subjects" clearable placeholder="如：数学" /></el-form-item>
+          <el-form-item label="审核">
+            <el-select v-model="adminTutorQuery.verifyStatus" clearable placeholder="全部" class="status-select">
+              <el-option label="待审核" value="0" />
+              <el-option label="已通过" value="1" />
+              <el-option label="已驳回" value="2" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="searchAdminTutors">查询</el-button>
+            <el-button icon="el-icon-refresh" @click="resetAdminTutors">重置</el-button>
+            <el-button icon="el-icon-download" @click="handleAdminExport('tutors', adminTutorQuery)">导出</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminTutors">
+          <el-table-column label="账号" prop="loginName" width="120" />
+          <el-table-column label="昵称" prop="userName" width="100" />
+          <el-table-column label="学校" prop="university" min-width="120" />
+          <el-table-column label="专业" prop="major" min-width="120" />
+          <el-table-column label="科目" prop="subjects" min-width="120" />
+          <el-table-column label="课时费" width="90"><template slot-scope="scope">{{ scope.row.hourlyRate ? '￥' + scope.row.hourlyRate : '-' }}</template></el-table-column>
+          <el-table-column label="评分" width="80"><template slot-scope="scope">{{ scope.row.averageRating || '暂无' }}</template></el-table-column>
+          <el-table-column label="完成单" prop="completedOrders" width="80" />
+          <el-table-column label="审核" width="90"><template slot-scope="scope">{{ verifyStatus(scope.row.verifyStatus) }}</template></el-table-column>
+          <el-table-column label="账号状态" width="90"><template slot-scope="scope">{{ userStatus(scope.row.userStatus) }}</template></el-table-column>
+          <el-table-column label="操作" width="90">
+            <template slot-scope="scope">
+              <el-button type="text" @click="changeBusinessUserStatus(scope.row.userId, scope.row.userStatus)">
+                {{ scope.row.userStatus === '0' ? '停用' : '启用' }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
       <el-tab-pane v-if="tabVisible('businessRequests')" label="业务监管-需求" name="businessRequests">
         <el-form :inline="true" :model="adminRequestQuery" size="small" class="filter-form" @submit.native.prevent>
           <el-form-item label="科目"><el-input v-model="adminRequestQuery.subject" clearable placeholder="如：数学" /></el-form-item>
@@ -254,6 +484,7 @@
           <el-form-item>
             <el-button type="primary" icon="el-icon-search" @click="searchAdminRequests">查询</el-button>
             <el-button icon="el-icon-refresh" @click="resetAdminRequests">重置</el-button>
+            <el-button icon="el-icon-download" @click="handleAdminExport('requests', adminRequestQuery)">导出</el-button>
           </el-form-item>
         </el-form>
         <el-table :data="adminRequests">
@@ -282,6 +513,7 @@
           <el-form-item>
             <el-button type="primary" icon="el-icon-search" @click="searchAdminMatches">查询</el-button>
             <el-button icon="el-icon-refresh" @click="resetAdminMatches">重置</el-button>
+            <el-button icon="el-icon-download" @click="handleAdminExport('matches', adminMatchQuery)">导出</el-button>
           </el-form-item>
         </el-form>
         <el-table :data="adminMatches">
@@ -292,6 +524,215 @@
           <el-table-column label="状态" width="90"><template slot-scope="scope">{{ matchStatus(scope.row.status) }}</template></el-table-column>
           <el-table-column label="评价" width="90"><template slot-scope="scope">{{ scope.row.rating || '-' }}</template></el-table-column>
           <el-table-column label="创建时间" prop="createTime" width="170" />
+          <el-table-column label="操作" width="90">
+            <template slot-scope="scope">
+              <el-button v-if="['0', '1'].includes(scope.row.status)" type="text" class="text-danger"
+                @click="closeBusinessMatch(scope.row)">关闭</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessInvitations')" label="业务监管-预约" name="businessInvitations">
+        <el-form :inline="true" :model="adminInvitationQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="科目"><el-input v-model="adminInvitationQuery.subject" clearable placeholder="如：数学" /></el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="adminInvitationQuery.status" clearable placeholder="全部" class="status-select">
+              <el-option label="待处理" value="0" />
+              <el-option label="已接受" value="1" />
+              <el-option label="已拒绝" value="2" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="searchAdminInvitations">查询</el-button>
+            <el-button icon="el-icon-refresh" @click="resetAdminInvitations">重置</el-button>
+            <el-button icon="el-icon-download" @click="handleAdminExport('invitations', adminInvitationQuery)">导出</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminInvitations">
+          <el-table-column label="家长" prop="publisherName" width="100" />
+          <el-table-column label="教员" prop="tutorName" width="100" />
+          <el-table-column label="科目" prop="subject" width="90" />
+          <el-table-column label="年级" prop="learnerGrade" width="90" />
+          <el-table-column label="区域" prop="area" min-width="120" />
+          <el-table-column label="课时费" width="90"><template slot-scope="scope">￥{{ scope.row.offeredRate }}</template></el-table-column>
+          <el-table-column label="状态" width="80"><template slot-scope="scope">{{ invitationStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="创建时间" prop="createTime" width="170" />
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessLessons')" label="业务监管-课时" name="businessLessons">
+        <el-form :inline="true" :model="adminLessonQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="科目"><el-input v-model="adminLessonQuery.subject" clearable placeholder="如：数学" /></el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="searchAdminLessons">查询</el-button>
+            <el-button icon="el-icon-refresh" @click="resetAdminLessons">重置</el-button>
+            <el-button icon="el-icon-download" @click="handleAdminExport('lessons', adminLessonQuery)">导出</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminLessons">
+          <el-table-column label="订单" prop="matchId" width="80" />
+          <el-table-column label="科目" prop="subject" width="90" />
+          <el-table-column label="家长" prop="publisherName" width="100" />
+          <el-table-column label="教员" prop="tutorName" width="100" />
+          <el-table-column label="日期" prop="lessonDate" width="110" />
+          <el-table-column label="课时" prop="hours" width="80" />
+          <el-table-column label="课时费" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="确认" width="90"><template slot-scope="scope">{{ scope.row.confirmStatus === '1' ? '已确认' : '待确认' }}</template></el-table-column>
+          <el-table-column label="内容" prop="content" min-width="180" show-overflow-tooltip />
+          <el-table-column label="记录时间" prop="createTime" width="170" />
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessSettlements')" label="结算管理" name="businessSettlements">
+        <el-form :inline="true" :model="adminSettlementQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="科目"><el-input v-model="adminSettlementQuery.subject" clearable placeholder="如：数学" /></el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="adminSettlementQuery.status" clearable placeholder="全部" class="status-select">
+              <el-option label="待结算" value="0" />
+              <el-option label="已结算" value="1" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="searchAdminSettlements">查询</el-button>
+            <el-button icon="el-icon-refresh" @click="resetAdminSettlements">重置</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminSettlements">
+          <el-table-column label="订单" prop="matchId" width="80" />
+          <el-table-column label="科目" prop="subject" width="90" />
+          <el-table-column label="家长" prop="publisherName" width="100" />
+          <el-table-column label="教员" prop="tutorName" width="100" />
+          <el-table-column label="课时" prop="lessonId" width="90" />
+          <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="状态" width="90"><template slot-scope="scope">{{ settlementStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="生成时间" prop="createTime" width="170" />
+          <el-table-column label="操作" width="90">
+            <template slot-scope="scope"><el-button v-if="scope.row.status === '0'" type="text" @click="settleSettlementRow(scope.row)">结算</el-button></template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessTickets')" label="工单处理" name="businessTickets">
+        <el-form :inline="true" :model="adminTicketQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="标题"><el-input v-model="adminTicketQuery.title" clearable placeholder="标题关键字" /></el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="adminTicketQuery.status" clearable placeholder="全部" class="status-select">
+              <el-option label="待处理" value="0" />
+              <el-option label="已解决" value="1" />
+              <el-option label="已关闭" value="2" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="searchAdminTickets">查询</el-button>
+            <el-button icon="el-icon-refresh" @click="resetAdminTickets">重置</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminTickets">
+          <el-table-column label="提交人" prop="userName" width="100" />
+          <el-table-column label="标题" prop="title" width="180" />
+          <el-table-column label="问题描述" prop="content" min-width="220" show-overflow-tooltip />
+          <el-table-column label="状态" width="90"><template slot-scope="scope">{{ ticketStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="处理意见" prop="handleRemark" min-width="180" show-overflow-tooltip />
+          <el-table-column label="提交时间" prop="createTime" width="170" />
+          <el-table-column label="操作" width="130">
+            <template slot-scope="scope">
+              <el-button v-if="scope.row.status === '0'" type="text" @click="handleTicketRow(scope.row, '1')">解决</el-button>
+              <el-button v-if="scope.row.status === '0'" type="text" class="text-danger" @click="handleTicketRow(scope.row, '2')">关闭</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessAnnouncements')" label="公告管理" name="businessAnnouncements">
+        <el-form :inline="true" :model="adminAnnouncementQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="标题"><el-input v-model="adminAnnouncementQuery.title" clearable placeholder="标题关键字" /></el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="adminAnnouncementQuery.status" clearable placeholder="全部" class="status-select">
+              <el-option label="草稿" value="0" />
+              <el-option label="发布" value="1" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="loadCurrentTab">查询</el-button>
+            <el-button icon="el-icon-plus" @click="openAnnouncement()">新增公告</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminAnnouncements">
+          <el-table-column label="标题" prop="title" width="180" />
+          <el-table-column label="内容" prop="content" min-width="260" show-overflow-tooltip />
+          <el-table-column label="状态" width="90"><template slot-scope="scope">{{ announcementStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="发布时间" prop="publishTime" width="170" />
+          <el-table-column label="操作" width="130">
+            <template slot-scope="scope">
+              <el-button type="text" @click="openAnnouncement(scope.row)">编辑</el-button>
+              <el-button type="text" class="text-danger" @click="removeAnnouncement(scope.row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessFollowups')" label="回访记录" name="businessFollowups">
+        <el-form :inline="true" :model="followupForm" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="订单ID"><el-input-number v-model="followupForm.matchId" :min="1" :controls="false" /></el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="followupForm.status" clearable placeholder="全部" class="status-select">
+              <el-option label="待跟进" value="0" />
+              <el-option label="已完成" value="1" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="内容"><el-input v-model="followupForm.content" clearable placeholder="回访内容" /></el-form-item>
+          <el-form-item label="后续"><el-input v-model="followupForm.nextAction" clearable placeholder="后续动作" /></el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-plus" @click="submitFollowup">新增回访</el-button>
+            <el-button icon="el-icon-search" @click="loadCurrentTab">查询</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="followupRows">
+          <el-table-column label="订单" prop="matchId" width="80" />
+          <el-table-column label="科目" prop="subject" width="90" />
+          <el-table-column label="家长" prop="publisherName" width="100" />
+          <el-table-column label="教员" prop="tutorName" width="100" />
+          <el-table-column label="回访内容" prop="content" min-width="220" show-overflow-tooltip />
+          <el-table-column label="后续动作" prop="nextAction" min-width="180" show-overflow-tooltip />
+          <el-table-column label="状态" width="90"><template slot-scope="scope">{{ followupStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="记录人" prop="createBy" width="100" />
+          <el-table-column label="时间" prop="createTime" width="170" />
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessPayments')" label="支付流水" name="businessPayments">
+        <el-form :inline="true" :model="adminPaymentQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="状态">
+            <el-select v-model="adminPaymentQuery.status" clearable placeholder="全部" class="status-select">
+              <el-option label="待确认" value="0" />
+              <el-option label="已确认" value="1" />
+              <el-option label="已驳回" value="2" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="loadCurrentTab">查询</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminPayments">
+          <el-table-column label="流水ID" prop="paymentId" width="90" />
+          <el-table-column label="订单" prop="matchId" width="80" />
+          <el-table-column label="科目" prop="subject" width="90" />
+          <el-table-column label="家长" prop="payerName" width="100" />
+          <el-table-column label="教员" prop="tutorName" width="100" />
+          <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="凭证" min-width="180" show-overflow-tooltip>
+            <template slot-scope="scope"><a v-if="scope.row.proofUrl" :href="scope.row.proofUrl" target="_blank">查看凭证</a></template>
+          </el-table-column>
+          <el-table-column label="状态" width="90"><template slot-scope="scope">{{ paymentStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="处理意见" prop="handleRemark" min-width="180" show-overflow-tooltip />
+          <el-table-column label="提交时间" prop="createTime" width="170" />
+          <el-table-column label="操作" width="130" align="center">
+            <template slot-scope="scope">
+              <el-button v-if="scope.row.status === '0'" type="text" @click="handlePaymentRow(scope.row, '1')">确认</el-button>
+              <el-button v-if="scope.row.status === '0'" type="text" class="text-danger" @click="handlePaymentRow(scope.row, '2')">驳回</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -327,6 +768,15 @@
             </div>
           </el-col>
         </el-row>
+        <h4>待办中心</h4>
+        <el-row :gutter="16">
+          <el-col v-for="item in adminTodoCards" :key="item.label" :xs="12" :sm="6">
+            <div class="stat-card">
+              <div class="stat-value">{{ item.value }}</div>
+              <div class="stat-label">{{ item.label }}</div>
+            </div>
+          </el-col>
+        </el-row>
         <h4>热门科目</h4>
         <el-table :data="dashboard.topSubjects || []" size="small">
           <el-table-column label="排名" type="index" width="80" />
@@ -334,16 +784,20 @@
           <el-table-column label="需求数" prop="requestCount" width="120" />
         </el-table>
       </el-tab-pane>
-    </el-tabs>
+        </el-tabs>
+      </section>
+    </div>
 
     <el-dialog title="教员资料" :visible.sync="profileDialog" width="620px" append-to-body>
       <el-form ref="profileForm" :model="profileForm" :rules="profileRules" label-width="100px">
+        <el-alert class="mb8" :closable="false" :title="'资料完整度 ' + profileCompleteness + '%'" type="info" />
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="学校" prop="university"><el-input v-model="profileForm.university" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="专业" prop="major"><el-input v-model="profileForm.major" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="年级" prop="collegeYear"><el-input v-model="profileForm.collegeYear" placeholder="例如：大三" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="期望课时费" prop="hourlyRate"><el-input-number v-model="profileForm.hourlyRate" :min="1" :precision="2" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="擅长科目" prop="subjects"><el-input v-model="profileForm.subjects" placeholder="例如：数学,物理" /></el-form-item></el-col>
+          <el-col :span="24"><el-form-item label="可授课时间"><el-input v-model="profileForm.availabilityText" placeholder="例如：周三晚、周末下午" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="个人简介" prop="introduction"><el-input v-model="profileForm.introduction" type="textarea" :rows="3" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="学生证"><image-upload v-model="profileForm.studentCardUrl" :limit="1" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="资格证"><image-upload v-model="profileForm.qualificationUrl" :limit="1" /></el-form-item></el-col>
@@ -388,13 +842,27 @@
         <el-table-column label="上课日期" prop="lessonDate" width="110" />
         <el-table-column label="课时" prop="hours" width="80" />
         <el-table-column label="授课内容" prop="content" />
+        <el-table-column label="课堂表现" prop="studentPerformance" min-width="120" show-overflow-tooltip />
+        <el-table-column label="课后作业" prop="homework" min-width="120" show-overflow-tooltip />
+        <el-table-column label="下节计划" prop="nextPlan" min-width="120" show-overflow-tooltip />
         <el-table-column label="课时费" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+        <el-table-column label="确认" width="90">
+          <template slot-scope="scope">{{ scope.row.confirmStatus === '1' ? '已确认' : '待确认' }}</template>
+        </el-table-column>
+        <el-table-column v-if="actionVisible('matches', 'confirmLesson')" label="操作" width="90">
+          <template slot-scope="scope">
+            <el-button v-if="scope.row.confirmStatus !== '1'" type="text" @click="confirmLessonRow(scope.row)">确认</el-button>
+          </template>
+        </el-table-column>
       </el-table>
       <el-divider v-if="currentMatch.status === '1' && actionVisible('matches', 'complete')" />
       <el-form v-if="currentMatch.status === '1' && actionVisible('matches', 'complete')" :model="lessonForm" label-width="90px">
         <el-form-item label="上课日期"><el-date-picker v-model="lessonForm.lessonDate" type="date" value-format="yyyy-MM-dd" placeholder="选择日期" /></el-form-item>
         <el-form-item label="课时数"><el-input-number v-model="lessonForm.hours" :min="0.5" :step="0.5" :precision="1" /></el-form-item>
         <el-form-item label="授课内容"><el-input v-model="lessonForm.content" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+        <el-form-item label="课堂表现"><el-input v-model="lessonForm.studentPerformance" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
+        <el-form-item label="课后作业"><el-input v-model="lessonForm.homework" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
+        <el-form-item label="下节计划"><el-input v-model="lessonForm.nextPlan" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
       </el-form>
       <div slot="footer">
         <el-button @click="lessonDialog = false">关闭</el-button>
@@ -421,6 +889,106 @@
       <div slot="footer"><el-button @click="inviteDialog = false">取消</el-button><el-button type="primary" @click="submitInvite">发送预约</el-button></div>
     </el-dialog>
 
+    <el-dialog title="学员档案" :visible.sync="learnerDialog" width="620px" append-to-body>
+      <el-form :model="learnerForm" label-width="100px">
+        <el-row :gutter="16">
+          <el-col :span="12"><el-form-item label="学员姓名"><el-input v-model="learnerForm.learnerName" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="年级"><el-input v-model="learnerForm.grade" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="学校"><el-input v-model="learnerForm.school" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="目标"><el-input v-model="learnerForm.targetScore" /></el-form-item></el-col>
+          <el-col :span="24"><el-form-item label="薄弱科目"><el-input v-model="learnerForm.weakSubjects" /></el-form-item></el-col>
+          <el-col :span="24"><el-form-item label="可上课时间"><el-input v-model="learnerForm.availableTime" /></el-form-item></el-col>
+          <el-col :span="24"><el-form-item label="备注"><el-input v-model="learnerForm.remark" type="textarea" :rows="3" /></el-form-item></el-col>
+        </el-row>
+      </el-form>
+      <div slot="footer"><el-button @click="learnerDialog = false">取消</el-button><el-button type="primary" @click="submitLearner">保存</el-button></div>
+    </el-dialog>
+
+    <el-dialog title="安排试听课" :visible.sync="trialDialog" width="520px" append-to-body>
+      <el-form :model="trialForm" label-width="90px">
+        <el-form-item label="试听时间"><el-date-picker v-model="trialForm.trialTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="选择时间" /></el-form-item>
+        <el-form-item label="备注"><el-input v-model="trialForm.trialRemark" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+      </el-form>
+      <div slot="footer"><el-button @click="trialDialog = false">取消</el-button><el-button type="primary" @click="submitTrial">保存</el-button></div>
+    </el-dialog>
+
+    <el-dialog title="客服工单" :visible.sync="ticketDialog" width="560px" append-to-body>
+      <el-form :model="ticketForm" label-width="90px">
+        <el-form-item label="标题"><el-input v-model="ticketForm.title" maxlength="100" show-word-limit /></el-form-item>
+        <el-form-item label="问题描述"><el-input v-model="ticketForm.content" type="textarea" :rows="5" maxlength="500" show-word-limit /></el-form-item>
+      </el-form>
+      <div slot="footer"><el-button @click="ticketDialog = false">取消</el-button><el-button type="primary" @click="submitTicketForm">提交</el-button></div>
+    </el-dialog>
+
+    <el-dialog title="课程资料" :visible.sync="materialDialog" width="640px" append-to-body>
+      <el-table :data="materialRows" size="small">
+        <el-table-column label="标题" prop="title" width="160" />
+        <el-table-column label="链接" min-width="220">
+          <template slot-scope="scope"><a :href="scope.row.fileUrl" target="_blank">{{ scope.row.fileUrl }}</a></template>
+        </el-table-column>
+        <el-table-column label="上传人" prop="uploaderName" width="100" />
+        <el-table-column label="时间" prop="createTime" width="160" />
+      </el-table>
+      <el-divider />
+      <el-form :model="materialForm" label-width="90px">
+        <el-form-item label="标题"><el-input v-model="materialForm.title" /></el-form-item>
+        <el-form-item label="资料文件"><file-upload v-model="materialForm.fileUrl" :limit="1" /></el-form-item>
+        <el-form-item label="备注"><el-input v-model="materialForm.remark" type="textarea" :rows="2" /></el-form-item>
+      </el-form>
+      <div slot="footer"><el-button @click="materialDialog = false">关闭</el-button><el-button type="primary" @click="submitMaterial">添加资料</el-button></div>
+    </el-dialog>
+
+    <el-dialog title="订单沟通" :visible.sync="messageDialog" width="640px" append-to-body @close="closeChatSocket">
+      <div class="chat-status"><el-tag size="mini" :type="chatConnected ? 'success' : 'info'">{{ chatConnected ? '实时连接' : '普通留言' }}</el-tag></div>
+      <el-table :data="messageRows" size="small" max-height="300">
+        <el-table-column label="发送人" prop="senderName" width="110" />
+        <el-table-column label="内容" prop="content" min-width="260" show-overflow-tooltip />
+        <el-table-column label="时间" prop="createTime" width="160" />
+      </el-table>
+      <el-divider />
+      <el-form :model="messageForm" label-width="90px">
+        <el-form-item label="留言"><el-input v-model="messageForm.content" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+      </el-form>
+      <div slot="footer"><el-button @click="messageDialog = false">关闭</el-button><el-button type="primary" @click="submitMessage">发送</el-button></div>
+    </el-dialog>
+
+    <el-dialog title="订单付款" :visible.sync="paymentDialog" width="680px" append-to-body>
+      <el-table :data="paymentRows" size="small">
+        <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+        <el-table-column label="凭证" min-width="180" show-overflow-tooltip>
+          <template slot-scope="scope"><a v-if="scope.row.proofUrl" :href="scope.row.proofUrl" target="_blank">查看凭证</a></template>
+        </el-table-column>
+        <el-table-column label="状态" width="90"><template slot-scope="scope">{{ paymentStatus(scope.row.status) }}</template></el-table-column>
+        <el-table-column label="备注" prop="remark" min-width="140" show-overflow-tooltip />
+        <el-table-column label="时间" prop="createTime" width="160" />
+      </el-table>
+      <el-divider />
+      <el-form :model="paymentForm" label-width="90px">
+        <el-form-item label="付款金额"><el-input-number v-model="paymentForm.amount" :min="1" :precision="2" :controls="false" /></el-form-item>
+        <el-form-item label="付款凭证"><file-upload v-model="paymentForm.proofUrl" :limit="1" /></el-form-item>
+        <el-form-item label="备注"><el-input v-model="paymentForm.remark" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="paymentDialog = false">关闭</el-button>
+        <el-button @click="submitMockPayment">模拟支付</el-button>
+        <el-button type="primary" @click="submitPayment">提交凭证</el-button>
+      </div>
+    </el-dialog>
+
+    <el-dialog title="平台公告" :visible.sync="announcementDialog" width="620px" append-to-body>
+      <el-form :model="announcementForm" label-width="90px">
+        <el-form-item label="标题"><el-input v-model="announcementForm.title" /></el-form-item>
+        <el-form-item label="内容"><el-input v-model="announcementForm.content" type="textarea" :rows="5" maxlength="1000" show-word-limit /></el-form-item>
+        <el-form-item label="状态">
+          <el-radio-group v-model="announcementForm.status">
+            <el-radio label="1">发布</el-radio>
+            <el-radio label="0">草稿</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer"><el-button @click="announcementDialog = false">取消</el-button><el-button type="primary" @click="submitAnnouncement">保存</el-button></div>
+    </el-dialog>
+
     <el-dialog title="教员详情" :visible.sync="tutorDialog" width="560px" append-to-body>
       <el-descriptions :column="2" border>
         <el-descriptions-item label="姓名">{{ tutorDetail.userName }}</el-descriptions-item>
@@ -428,6 +996,7 @@
         <el-descriptions-item label="专业">{{ tutorDetail.major }}</el-descriptions-item>
         <el-descriptions-item label="年级">{{ tutorDetail.collegeYear }}</el-descriptions-item>
         <el-descriptions-item label="擅长科目">{{ tutorDetail.subjects }}</el-descriptions-item>
+        <el-descriptions-item label="可授课时间">{{ tutorDetail.availabilityText || '暂无' }}</el-descriptions-item>
         <el-descriptions-item label="期望课时费">￥{{ tutorDetail.hourlyRate }}/小时</el-descriptions-item>
         <el-descriptions-item label="已完成订单">{{ tutorDetail.completedOrders || 0 }}</el-descriptions-item>
         <el-descriptions-item label="平均评分">{{ tutorDetail.averageRating ? tutorDetail.averageRating + ' 分' : '暂无评价' }}</el-descriptions-item>
@@ -444,19 +1013,73 @@
 <script>
 import {
   getMyProfile, getTutorProfile, saveMyProfile, listPendingProfiles, verifyProfile,
-  listVerifiedTutors, listOpenRequests, listAdminRequests, listMyRequests, publishRequest,
-  cancelRequest, listMyMatches, listAdminMatches,
-  applyRequest, withdrawMatch, acceptMatch, completeMatch, reviewMatch, getDashboard,
-  listLessons, addLesson, listNotifications, readNotification, submitComplaint,
+  listLearners, saveLearner, deleteLearner, listAvailability, addAvailability, deleteAvailability,
+  listAnnouncements, listAdminAnnouncements, saveAnnouncement, deleteAnnouncement,
+  listVerifiedTutors, listOpenRequests, listAdminRequests, listMyRequests, publishRequest, copyRequest,
+  cancelRequest, listMyMatches, listAdminClients, listAdminTutors, listAdminMatches,
+  listAdminInvitations, listAdminLessons, listAdminSettlements, listAdminTickets, changeAdminUserStatus, closeAdminMatch,
+  applyRequest, withdrawMatch, cancelMatch, rescheduleMatch, scheduleTrial, completeTrial, acceptMatch, completeMatch, reviewMatch, getDashboard, getDashboardTodos,
+  listLessons, addLesson, confirmLesson, listMaterials, addMaterial, listMessages, addMessage, listPayments, addPayment, mockPayment,
+  listNotifications, readNotification, readAllNotifications, getUnreadNotificationCount, submitComplaint,
+  listMySettlements, settleSettlement, listAdminPayments, handlePayment, listAdminFollowups, addFollowup, listTickets, submitTicket, handleTicket,
   listMyComplaints, listComplaints, handleComplaint, listRecommendedRequests,
   listFavoriteTutors, favoriteTutor as favoriteTutorApi, unfavoriteTutor, inviteTutor,
   listInvitations, acceptInvitation, rejectInvitation
 } from '@/api/tutoring'
+import { getToken } from '@/utils/auth'
 const { resolveWorkbenchRole, getWorkbenchConfig } = require('./roleConfig.cjs')
 
-const emptyProfile = () => ({ university: '', major: '', collegeYear: '', subjects: '', hourlyRate: 60, introduction: '', studentCardUrl: '', qualificationUrl: '' })
+const emptyProfile = () => ({ university: '', major: '', collegeYear: '', subjects: '', hourlyRate: 60, availabilityText: '', introduction: '', studentCardUrl: '', qualificationUrl: '' })
 const emptyRequest = () => ({ learnerGrade: '', subject: '', area: '', scheduleText: '', hourlyBudget: 80, requirementText: '' })
 const emptyInvite = () => ({ tutorId: null, learnerGrade: '', subject: '', area: '', scheduleText: '', offeredRate: 80, message: '' })
+const emptyLearner = () => ({ learnerId: null, learnerName: '', grade: '', school: '', weakSubjects: '', targetScore: '', availableTime: '', remark: '' })
+const emptyAvailability = () => ({ weekDay: '1', startTime: '18:00', endTime: '20:00', remark: '' })
+const emptyTicket = () => ({ title: '', content: '' })
+const emptyAnnouncement = () => ({ announcementId: null, title: '', content: '', status: '1' })
+const emptyMaterial = () => ({ title: '', fileUrl: '', remark: '' })
+const emptyFollowup = () => ({ matchId: null, content: '', nextAction: '', status: '0' })
+const emptyMessage = () => ({ content: '' })
+const emptyPayment = () => ({ amount: 0, proofUrl: '', remark: '' })
+const countRows = response => response && response.total != null
+  ? response.total
+  : ((response && (response.rows || response.data)) || []).length
+const ROLE_META = {
+  admin: { role: '管理员', title: '家教运营管理台', subtitle: '集中处理审核、用户、需求、订单、课时与投诉，适合日常运营巡检。', icon: 'el-icon-s-tools' },
+  tutor: { role: '大学生教员', title: '教员接单工作台', subtitle: '维护认证资料，查看推荐需求，管理订单、课时记录和消息通知。', icon: 'el-icon-reading' },
+  client: { role: '家长学员', title: '家教服务工作台', subtitle: '筛选教员、发布需求、处理预约、确认课时并跟进服务评价。', icon: 'el-icon-s-custom' }
+}
+const NAV_META = {
+  dashboard: { label: '数据看板', icon: 'el-icon-s-data', desc: '查看平台核心指标、待办事项和热门科目。' },
+  businessClients: { label: '家长管理', icon: 'el-icon-user', desc: '管理家长账号状态、联系方式和业务统计。' },
+  businessTutors: { label: '教员管理', icon: 'el-icon-reading', desc: '查看教员资料、认证状态、评分和账号状态。' },
+  businessRequests: { label: '需求监管', icon: 'el-icon-document', desc: '按科目和状态巡检家教需求发布情况。' },
+  businessMatches: { label: '订单监管', icon: 'el-icon-s-order', desc: '跟进申请、接单、完成和异常关闭订单。' },
+  businessInvitations: { label: '预约监管', icon: 'el-icon-message', desc: '查看家长向教员发起的预约与响应状态。' },
+  businessLessons: { label: '课时监管', icon: 'el-icon-date', desc: '查看课时记录、费用和家长确认状态。' },
+  verify: { label: '教员审核', icon: 'el-icon-s-check', desc: '审核大学生教员提交的认证材料。' },
+  complaints: { label: '投诉处理', icon: 'el-icon-warning-outline', desc: '跟踪投诉原因、处理意见和处理记录。' },
+  profile: { label: '认证资料', icon: 'el-icon-user', desc: '维护学校、专业、擅长科目、课时费和授课时间。' },
+  open: { label: '开放需求', icon: 'el-icon-document', desc: '浏览可申请的家教需求并提交报价说明。' },
+  recommended: { label: '智能推荐', icon: 'el-icon-magic-stick', desc: '按资料匹配度查看更适合申请的需求。' },
+  matches: { label: '订单管理', icon: 'el-icon-s-order', desc: '处理申请、接单、课程记录、评价、改期和投诉。' },
+  invitations: { label: '预约邀请', icon: 'el-icon-message', desc: '处理家长预约邀请和预约流转状态。' },
+  notifications: { label: '消息通知', icon: 'el-icon-bell', desc: '查看系统通知并处理未读消息。' },
+  tutors: { label: '教员库', icon: 'el-icon-s-custom', desc: '筛选认证教员，查看详情、收藏或发起预约。' },
+  requests: { label: '我的需求', icon: 'el-icon-tickets', desc: '管理已发布需求，支持取消和复制再发布。' },
+  favorites: { label: '收藏教员', icon: 'el-icon-star-off', desc: '维护常用教员名单并快速发起预约。' }
+}
+Object.assign(NAV_META, {
+  businessSettlements: { label: '结算管理', icon: 'el-icon-money', desc: '核对已确认课时生成的待结算课时费。' },
+  businessTickets: { label: '工单处理', icon: 'el-icon-service', desc: '处理家长和教员提交的平台问题。' },
+  availability: { label: '授课日历', icon: 'el-icon-time', desc: '维护可预约的星期和时间段。' },
+  settlements: { label: '收入结算', icon: 'el-icon-money', desc: '查看已确认课时对应的结算状态。' },
+  tickets: { label: '客服工单', icon: 'el-icon-service', desc: '提交和跟踪平台服务问题。' },
+  learners: { label: '学员档案', icon: 'el-icon-notebook-2', desc: '维护学员年级、薄弱科目、目标和可上课时间。' },
+  announcements: { label: '平台公告', icon: 'el-icon-date', desc: '查看平台通知、服务规则和运营提醒。' },
+  businessAnnouncements: { label: '公告管理', icon: 'el-icon-date', desc: '发布和维护平台公告。' },
+  businessFollowups: { label: '回访记录', icon: 'el-icon-phone-outline', desc: '记录订单服务回访和后续动作。' },
+  businessPayments: { label: '支付流水', icon: 'el-icon-bank-card', desc: '核验家长提交的付款凭证和订单收款状态。' }
+})
 
 export default {
   name: 'TutoringWorkbench',
@@ -465,19 +1088,43 @@ export default {
       activeTab: '', loading: false,
       tutors: [], openRequests: [], recommendedRequests: [], myRequests: [], matches: [], pendingProfiles: [],
       notifications: [], complaints: [], favoriteTutors: [], invitations: [], lessons: [],
-      adminRequests: [], adminMatches: [],
+      learnerRows: [], availabilityRows: [], settlementRows: [], ticketRows: [],
+      announcementRows: [], materialRows: [], followupRows: [], messageRows: [], paymentRows: [],
+      adminClients: [], adminTutors: [], adminRequests: [], adminMatches: [], adminInvitations: [], adminLessons: [],
+      adminSettlements: [], adminTickets: [], adminAnnouncements: [], adminPayments: [],
+      notificationQuery: { readStatus: '', title: '' }, unreadNotifications: 0,
       profileDialog: false, requestDialog: false, applyDialog: false, reviewDialog: false, tutorDialog: false,
-      lessonDialog: false, complaintDialog: false, inviteDialog: false,
+      lessonDialog: false, complaintDialog: false, inviteDialog: false, learnerDialog: false, ticketDialog: false, trialDialog: false,
+      materialDialog: false, announcementDialog: false, messageDialog: false, paymentDialog: false,
       tutorQuery: { subjects: '', university: '' },
       queryForm: { subject: '', learnerGrade: '', area: '', minBudget: undefined, maxBudget: undefined },
+      adminClientQuery: { userName: '', status: '' },
+      adminTutorQuery: { userName: '', university: '', subjects: '', verifyStatus: '' },
       adminRequestQuery: { subject: '', status: '' },
       adminMatchQuery: { subject: '', status: '' },
-      tutorDetail: {}, dashboard: { topSubjects: [] },
+      adminInvitationQuery: { subject: '', status: '' },
+      adminLessonQuery: { subject: '' },
+      adminSettlementQuery: { subject: '', status: '' },
+      adminTicketQuery: { title: '', status: '' },
+      adminAnnouncementQuery: { title: '', status: '' },
+      adminPaymentQuery: { status: '' },
+      chatSocket: null, chatConnected: false,
+      tutorDetail: {}, dashboard: { topSubjects: [] }, adminTodos: {},
+      overview: { tutors: 0, openRequests: 0, recommended: 0, requests: 0, matches: 0, invitations: 0, unread: 0 },
       currentMatch: {},
       profileForm: emptyProfile(), requestForm: emptyRequest(),
       applyForm: { requestId: null, quotedRate: 60, applicationText: '' },
       reviewForm: { matchId: null, rating: 5, reviewText: '' },
-      lessonForm: { lessonDate: '', hours: 1, content: '' },
+      lessonForm: { lessonDate: '', hours: 1, content: '', studentPerformance: '', homework: '', nextPlan: '' },
+      learnerForm: emptyLearner(),
+      availabilityForm: emptyAvailability(),
+      ticketForm: emptyTicket(),
+      announcementForm: emptyAnnouncement(),
+      materialForm: emptyMaterial(),
+      followupForm: emptyFollowup(),
+      messageForm: emptyMessage(),
+      paymentForm: emptyPayment(),
+      trialForm: { matchId: null, trialTime: '', trialRemark: '' },
       complaintForm: { matchId: null, reason: '' },
       inviteForm: emptyInvite(),
       profileRules: {
@@ -505,6 +1152,57 @@ export default {
     complaintsLabel() {
       return this.workbenchRole === 'admin' ? '投诉处理' : '我的投诉'
     },
+    roleMeta() {
+      return ROLE_META[this.workbenchRole] || { role: '工作台', title: '家教工作台', subtitle: '', icon: 'el-icon-s-platform' }
+    },
+    userAvatar() {
+      return this.$store.getters.avatar
+    },
+    userNickName() {
+      return this.$store.getters.nickName || this.$store.getters.name || '个人中心'
+    },
+    workbenchNavItems() {
+      return this.workbenchConfig.tabs.map(name => {
+        const item = NAV_META[name] || { label: name, icon: 'el-icon-menu', desc: '' }
+        return { ...item, name, label: name === 'complaints' ? this.complaintsLabel : item.label, badge: this.navBadge(name) }
+      })
+    },
+    activeNav() {
+      return this.workbenchNavItems.find(item => item.name === this.activeTab) || { label: '工作台', desc: '' }
+    },
+    roleMetricCards() {
+      if (this.workbenchRole === 'admin') {
+        return [
+          { label: '需求总数', value: this.dashboard.totalRequests || 0, note: '全平台需求', icon: 'el-icon-document' },
+          { label: '开放需求', value: this.dashboard.openRequests || 0, note: '正在招募', icon: 'el-icon-tickets' },
+          { label: '完成订单', value: this.dashboard.completedRequests || 0, note: '已闭环服务', icon: 'el-icon-circle-check' },
+          { label: '认证教员', value: this.dashboard.verifiedTutors || 0, note: '可接单教员', icon: 'el-icon-user' },
+          { label: '待办事项', value: this.adminTodoTotal, note: '需运营处理', icon: 'el-icon-warning-outline', warning: this.adminTodoTotal > 0 },
+          { label: '匹配率', value: `${this.dashboard.matchRate || 0}%`, note: '需求转化', icon: 'el-icon-data-line' }
+        ]
+      }
+      if (this.workbenchRole === 'tutor') {
+        return [
+          { label: '认证状态', value: this.verifyStatus(this.profileForm.verifyStatus), note: '通过后开放接单', icon: 'el-icon-s-check', warning: this.profileForm.verifyStatus !== '1' },
+          { label: '开放需求', value: this.overview.openRequests || 0, note: '可申请需求', icon: 'el-icon-document' },
+          { label: '推荐需求', value: this.overview.recommended || 0, note: '匹配资料', icon: 'el-icon-magic-stick' },
+          { label: '我的订单', value: this.overview.matches || 0, note: '申请与接单', icon: 'el-icon-s-order' },
+          { label: '预约邀请', value: this.overview.invitations || 0, note: '待响应邀约', icon: 'el-icon-message' },
+          { label: '未读消息', value: this.overview.unread || 0, note: '系统通知', icon: 'el-icon-bell', warning: this.overview.unread > 0 }
+        ]
+      }
+      return [
+        { label: '认证教员', value: this.overview.tutors || 0, note: '可预约名单', icon: 'el-icon-s-custom' },
+        { label: '我的需求', value: this.overview.requests || 0, note: '已发布需求', icon: 'el-icon-tickets' },
+        { label: '我的订单', value: this.overview.matches || 0, note: '服务进度', icon: 'el-icon-s-order' },
+        { label: '预约邀请', value: this.overview.invitations || 0, note: '预约流转', icon: 'el-icon-message' },
+        { label: '未读消息', value: this.overview.unread || 0, note: '系统通知', icon: 'el-icon-bell', warning: this.overview.unread > 0 }
+      ]
+    },
+    adminTodoTotal() {
+      return ['pendingProfiles', 'pendingComplaints', 'unconfirmedLessons', 'staleMatches', 'pendingSettlements', 'pendingTickets']
+        .reduce((sum, key) => sum + Number(this.adminTodos[key] || 0), 0)
+    },
     dashboardCards() {
       return [
         { label: '需求总数', value: this.dashboard.totalRequests || 0 },
@@ -515,12 +1213,26 @@ export default {
         { label: '平均评分', value: this.dashboard.averageRating || 0 }
       ]
     },
+    adminTodoCards() {
+      return [
+        { label: '待审核教员', value: this.adminTodos.pendingProfiles || 0 },
+        { label: '待处理投诉', value: this.adminTodos.pendingComplaints || 0 },
+        { label: '待确认课时', value: this.adminTodos.unconfirmedLessons || 0 },
+        { label: '久未完成订单', value: this.adminTodos.staleMatches || 0 }
+      ]
+    },
+    profileCompleteness() {
+      const fields = ['university', 'major', 'collegeYear', 'subjects', 'hourlyRate', 'availabilityText', 'introduction', 'studentCardUrl']
+      const filled = fields.filter(key => String(this.profileForm[key] || '').trim()).length
+      return Math.round(filled * 100 / fields.length)
+    },
     profileVerifyText() {
       const text = { '0': '资料待审核', '1': '资料已通过审核', '2': '资料被驳回' }[this.profileForm.verifyStatus]
       return `${text || '尚未提交教员资料'}${this.profileForm.verifyRemark ? '：' + this.profileForm.verifyRemark : ''}`
     }
   },
   created() { this.initWorkbench() },
+  beforeDestroy() { this.closeChatSocket() },
   methods: {
     has(permission) {
       const permissions = this.$store.getters.permissions || []
@@ -535,6 +1247,41 @@ export default {
     actionVisible(tab, action) {
       return (this.workbenchConfig.actions[tab] || []).includes(action)
     },
+    navBadge(name) {
+      if (name === 'notifications') return this.overview.unread || 0
+      if (name === 'invitations') return this.overview.invitations || 0
+      if (name === 'verify') return this.adminTodos.pendingProfiles || 0
+      if (name === 'complaints') return this.workbenchRole === 'admin' ? (this.adminTodos.pendingComplaints || 0) : 0
+      if (name === 'businessLessons') return this.adminTodos.unconfirmedLessons || 0
+      if (name === 'businessSettlements') return this.adminTodos.pendingSettlements || 0
+      if (name === 'businessTickets') return this.adminTodos.pendingTickets || 0
+      if (name === 'businessMatches') return this.adminTodos.staleMatches || 0
+      return 0
+    },
+    switchTab(name) {
+      if (this.activeTab === name) return this.loadCurrentTab()
+      this.activeTab = name
+      return this.loadCurrentTab()
+    },
+    goProfile() {
+      this.$router.push('/user/profile')
+    },
+    lockScreen() {
+      this.$store.dispatch('lock/lockScreen', this.$route.fullPath).then(() => {
+        this.$router.push('/lock')
+      })
+    },
+    logout() {
+      this.$confirm('确定注销并退出系统吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.$store.dispatch('LogOut').then(() => {
+          location.href = '/index'
+        })
+      }).catch(() => {})
+    },
     ensureActiveTab() {
       if (!this.tabVisible(this.activeTab)) this.activeTab = this.workbenchConfig.defaultTab
     },
@@ -542,7 +1289,7 @@ export default {
       const ready = this.workbenchRole === 'tutor' ? this.loadProfile(false) : Promise.resolve()
       ready.finally(() => {
         this.ensureActiveTab()
-        this.loadCurrentTab()
+        this.loadAll()
       })
     },
     loadProfile(showDialog) {
@@ -555,36 +1302,114 @@ export default {
       })
     },
     loadAll() {
-      return this.loadCurrentTab()
+      return Promise.all([this.loadRoleOverview().catch(() => {}), this.loadCurrentTab()])
+    },
+    loadRoleOverview() {
+      if (!this.workbenchRole) return Promise.resolve()
+      if (this.workbenchRole === 'admin') {
+        return getDashboard()
+          .then(r => { this.dashboard = r.data || { topSubjects: [] } })
+          .then(() => this.loadAdminTodos())
+      }
+      if (this.workbenchRole === 'tutor') {
+        if (this.profileForm.verifyStatus !== '1') {
+          this.overview = { ...this.overview, openRequests: 0, recommended: 0, matches: 0, invitations: 0 }
+          return Promise.resolve()
+        }
+        return Promise.all([
+          listOpenRequests({}),
+          listRecommendedRequests(),
+          listMyMatches(),
+          listInvitations(),
+          getUnreadNotificationCount()
+        ]).then(([open, recommended, matches, invitations, unread]) => {
+          this.overview = {
+            ...this.overview,
+            openRequests: countRows(open),
+            recommended: countRows(recommended),
+            matches: countRows(matches),
+            invitations: countRows(invitations),
+            unread: unread.data || 0
+          }
+        })
+      }
+      return Promise.all([
+        listVerifiedTutors({}),
+        listMyRequests(),
+        listMyMatches(),
+        listInvitations(),
+        getUnreadNotificationCount()
+      ]).then(([tutors, requests, matches, invitations, unread]) => {
+        this.overview = {
+          ...this.overview,
+          tutors: countRows(tutors),
+          requests: countRows(requests),
+          matches: countRows(matches),
+          invitations: countRows(invitations),
+          unread: unread.data || 0
+        }
+      })
     },
     loadCurrentTab() {
       if (!this.workbenchRole) return Promise.resolve()
       this.ensureActiveTab()
       const loaders = {
         profile: () => this.loadProfile(false),
+        learners: () => listLearners().then(r => { this.learnerRows = r.rows || [] }),
+        availability: () => listAvailability().then(r => { this.availabilityRows = r.data || [] }),
         tutors: () => listVerifiedTutors(this.tutorQuery).then(r => { this.tutors = r.rows || [] }),
         open: () => listOpenRequests(this.queryForm).then(r => { this.openRequests = r.rows || [] }),
         recommended: () => listRecommendedRequests().then(r => { this.recommendedRequests = r.data || [] }),
         requests: () => listMyRequests().then(r => { this.myRequests = r.rows || [] }),
         matches: () => listMyMatches().then(r => { this.matches = r.rows || [] }),
-        notifications: () => listNotifications().then(r => { this.notifications = r.data || [] }),
+        notifications: () => this.loadNotifications(),
         invitations: () => listInvitations().then(r => { this.invitations = r.data || [] }),
+        announcements: () => listAnnouncements().then(r => { this.announcementRows = r.data || [] }),
+        settlements: () => listMySettlements().then(r => { this.settlementRows = r.data || [] }),
+        tickets: () => listTickets().then(r => { this.ticketRows = r.data || [] }),
         complaints: () => (this.workbenchRole === 'admin' ? listComplaints() : listMyComplaints()).then(r => { this.complaints = r.data || [] }),
         favorites: () => listFavoriteTutors().then(r => { this.favoriteTutors = r.data || [] }),
         verify: () => listPendingProfiles().then(r => { this.pendingProfiles = r.rows || [] }),
-        dashboard: () => getDashboard().then(r => { this.dashboard = r.data || { topSubjects: [] } }),
+        dashboard: () => getDashboard().then(r => { this.dashboard = r.data || { topSubjects: [] } }).then(() => this.loadAdminTodos()),
+        businessClients: () => listAdminClients(this.adminClientQuery).then(r => { this.adminClients = r.rows || [] }),
+        businessTutors: () => listAdminTutors(this.adminTutorQuery).then(r => { this.adminTutors = r.rows || [] }),
         businessRequests: () => listAdminRequests(this.adminRequestQuery).then(r => { this.adminRequests = r.rows || [] }),
-        businessMatches: () => listAdminMatches(this.adminMatchQuery).then(r => { this.adminMatches = r.rows || [] })
+        businessMatches: () => listAdminMatches(this.adminMatchQuery).then(r => { this.adminMatches = r.rows || [] }),
+        businessInvitations: () => listAdminInvitations(this.adminInvitationQuery).then(r => { this.adminInvitations = r.rows || [] }),
+        businessLessons: () => listAdminLessons(this.adminLessonQuery).then(r => { this.adminLessons = r.rows || [] }),
+        businessSettlements: () => listAdminSettlements(this.adminSettlementQuery).then(r => { this.adminSettlements = r.rows || [] }),
+        businessTickets: () => listAdminTickets(this.adminTicketQuery).then(r => { this.adminTickets = r.rows || [] }),
+        businessAnnouncements: () => listAdminAnnouncements(this.adminAnnouncementQuery).then(r => { this.adminAnnouncements = r.rows || [] }),
+        businessFollowups: () => listAdminFollowups(this.followupForm).then(r => { this.followupRows = r.rows || [] }),
+        businessPayments: () => listAdminPayments(this.adminPaymentQuery).then(r => { this.adminPayments = r.rows || [] })
       }
       const loader = loaders[this.activeTab]
       if (!loader) return Promise.resolve()
       this.loading = true
       return loader().finally(() => { this.loading = false })
     },
+    loadNotifications() {
+      return listNotifications(this.notificationQuery).then(r => {
+        this.notifications = r.data || []
+        return getUnreadNotificationCount()
+      }).then(r => {
+        this.unreadNotifications = r.data || 0
+        this.overview = { ...this.overview, unread: this.unreadNotifications }
+      })
+    },
+    loadAdminTodos() {
+      if (this.workbenchRole !== 'admin') return Promise.resolve()
+      return getDashboardTodos().then(r => { this.adminTodos = r.data || {} })
+    },
+    handleAdminExport(type, query) {
+      this.download(`system/tutoring/admin/export/${type}`, query, `tutoring-${type}-${new Date().getTime()}.csv`)
+    },
     requestStatus(status) { return { '0': '招募中', '1': '已匹配', '2': '已完成', '3': '已取消' }[status] || status },
     matchStatus(status) { return { '0': '申请中', '1': '已接单', '2': '已完成', '3': '未选中', '4': '已取消' }[status] || status },
     complaintStatus(status) { return { '0': '待处理', '1': '已解决', '2': '已驳回' }[status] || status },
     invitationStatus(status) { return { '0': '待处理', '1': '已接受', '2': '已拒绝' }[status] || status },
+    userStatus(status) { return { '0': '正常', '1': '停用' }[status] || status || '-' },
+    verifyStatus(status) { return { '0': '待审核', '1': '已通过', '2': '已驳回' }[status] || '未提交' },
     searchRequests() {
       if (this.queryForm.minBudget != null && this.queryForm.maxBudget != null && this.queryForm.minBudget > this.queryForm.maxBudget) {
         return this.$modal.msgError('最低预算不能高于最高预算')
@@ -602,6 +1427,20 @@ export default {
       this.tutorQuery = { subjects: '', university: '' }
       this.searchTutors()
     },
+    searchAdminClients() {
+      this.loadCurrentTab()
+    },
+    resetAdminClients() {
+      this.adminClientQuery = { userName: '', status: '' }
+      this.searchAdminClients()
+    },
+    searchAdminTutors() {
+      this.loadCurrentTab()
+    },
+    resetAdminTutors() {
+      this.adminTutorQuery = { userName: '', university: '', subjects: '', verifyStatus: '' }
+      this.searchAdminTutors()
+    },
     searchAdminRequests() {
       this.loadCurrentTab()
     },
@@ -615,6 +1454,270 @@ export default {
     resetAdminMatches() {
       this.adminMatchQuery = { subject: '', status: '' }
       this.searchAdminMatches()
+    },
+    changeBusinessUserStatus(userId, status) {
+      const target = status === '0' ? '1' : '0'
+      const action = target === '1' ? '停用' : '启用'
+      this.$modal.confirm(`确认${action}该账号吗？`).then(() => changeAdminUserStatus(userId, target)).then(() => {
+        this.$modal.msgSuccess(`${action}成功`)
+        this.loadCurrentTab()
+      }).catch(() => {})
+    },
+    closeBusinessMatch(row) {
+      this.$modal.confirm('确认关闭该异常订单吗？').then(() => closeAdminMatch(row.matchId)).then(() => {
+        this.$modal.msgSuccess('订单已关闭')
+        this.loadCurrentTab()
+      }).catch(() => {})
+    },
+    searchAdminInvitations() {
+      this.loadCurrentTab()
+    },
+    resetAdminInvitations() {
+      this.adminInvitationQuery = { subject: '', status: '' }
+      this.searchAdminInvitations()
+    },
+    searchAdminLessons() {
+      this.loadCurrentTab()
+    },
+    resetAdminLessons() {
+      this.adminLessonQuery = { subject: '' }
+      this.searchAdminLessons()
+    },
+    searchAdminSettlements() {
+      this.loadCurrentTab()
+    },
+    resetAdminSettlements() {
+      this.adminSettlementQuery = { subject: '', status: '' }
+      this.searchAdminSettlements()
+    },
+    searchAdminPayments() {
+      this.loadCurrentTab()
+    },
+    resetAdminPayments() {
+      this.adminPaymentQuery = { status: '' }
+      this.searchAdminPayments()
+    },
+    searchAdminTickets() {
+      this.loadCurrentTab()
+    },
+    resetAdminTickets() {
+      this.adminTicketQuery = { title: '', status: '' }
+      this.searchAdminTickets()
+    },
+    weekDayText(day) {
+      return { '1': '周一', '2': '周二', '3': '周三', '4': '周四', '5': '周五', '6': '周六', '7': '周日' }[day] || day
+    },
+    trialStatus(status) {
+      return { '0': '未安排', '1': '待试听', '2': '已完成' }[status] || '未安排'
+    },
+    settlementStatus(status) {
+      return { '0': '待结算', '1': '已结算' }[status] || status
+    },
+    ticketStatus(status) {
+      return { '0': '待处理', '1': '已解决', '2': '已关闭' }[status] || status
+    },
+    announcementStatus(status) {
+      return { '0': '草稿', '1': '发布' }[status] || status
+    },
+    followupStatus(status) {
+      return { '0': '待跟进', '1': '已完成' }[status] || status
+    },
+    paymentStatus(status) {
+      return { '0': '待确认', '1': '已确认', '2': '已驳回' }[status] || status
+    },
+    openAnnouncement(row) {
+      this.announcementForm = row ? { ...row } : emptyAnnouncement()
+      this.announcementDialog = true
+    },
+    submitAnnouncement() {
+      if (!this.announcementForm.title || !this.announcementForm.content) return this.$modal.msgError('请填写公告标题和内容')
+      saveAnnouncement(this.announcementForm).then(() => {
+        this.$modal.msgSuccess('公告已保存')
+        this.announcementDialog = false
+        this.loadCurrentTab()
+      })
+    },
+    removeAnnouncement(row) {
+      this.$modal.confirm('确认删除该公告吗？').then(() => deleteAnnouncement(row.announcementId)).then(() => {
+        this.$modal.msgSuccess('公告已删除')
+        this.loadCurrentTab()
+      }).catch(() => {})
+    },
+    openMaterials(row) {
+      this.currentMatch = row
+      this.materialForm = emptyMaterial()
+      listMaterials(row.matchId).then(r => {
+        this.materialRows = r.data || []
+        this.materialDialog = true
+      })
+    },
+    submitMaterial() {
+      if (!this.materialForm.title || !this.materialForm.fileUrl) return this.$modal.msgError('请填写资料标题和链接')
+      addMaterial(this.currentMatch.matchId, this.materialForm).then(() => {
+        this.$modal.msgSuccess('课程资料已添加')
+        this.openMaterials(this.currentMatch)
+      })
+    },
+    openMessages(row) {
+      this.currentMatch = row
+      this.messageForm = emptyMessage()
+      listMessages(row.matchId).then(r => {
+        this.messageRows = r.data || []
+        this.messageDialog = true
+        this.connectChatSocket(row.matchId)
+      })
+    },
+    submitMessage() {
+      if (!this.messageForm.content) return this.$modal.msgError('请输入留言内容')
+      if (this.chatSocket && this.chatSocket.readyState === WebSocket.OPEN) {
+        this.chatSocket.send(this.messageForm.content)
+        this.messageForm = emptyMessage()
+        return
+      }
+      addMessage(this.currentMatch.matchId, this.messageForm).then(() => {
+        this.$modal.msgSuccess('留言已发送')
+        this.openMessages(this.currentMatch)
+      })
+    },
+    refreshMessages() {
+      if (!this.currentMatch.matchId) return
+      return listMessages(this.currentMatch.matchId).then(r => { this.messageRows = r.data || [] })
+    },
+    connectChatSocket(matchId) {
+      this.closeChatSocket()
+      const token = getToken()
+      if (!token || typeof WebSocket === 'undefined') return
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+      const baseApi = process.env.VUE_APP_BASE_API || ''
+      const wsUrl = `${protocol}://${window.location.host}${baseApi}/system/tutoring/ws/messages/${matchId}/${encodeURIComponent(token)}`
+      const socket = new WebSocket(wsUrl)
+      this.chatSocket = socket
+      socket.onopen = () => { this.chatConnected = true }
+      socket.onmessage = () => { this.refreshMessages() }
+      socket.onerror = () => { this.chatConnected = false }
+      socket.onclose = () => {
+        if (this.chatSocket === socket) this.chatSocket = null
+        this.chatConnected = false
+      }
+    },
+    closeChatSocket() {
+      if (this.chatSocket) {
+        this.chatSocket.close()
+        this.chatSocket = null
+      }
+      this.chatConnected = false
+    },
+    openPayments(row) {
+      this.currentMatch = row
+      this.paymentForm = { ...emptyPayment(), amount: Number(row.quotedRate) || 0 }
+      listPayments(row.matchId).then(r => {
+        this.paymentRows = r.data || []
+        this.paymentDialog = true
+      })
+    },
+    submitPayment() {
+      if (!this.paymentForm.amount || !this.paymentForm.proofUrl) return this.$modal.msgError('请填写付款金额并上传凭证')
+      addPayment(this.currentMatch.matchId, this.paymentForm).then(() => {
+        this.$modal.msgSuccess('付款凭证已提交')
+        this.openPayments(this.currentMatch)
+      })
+    },
+    submitMockPayment() {
+      if (!this.paymentForm.amount) return this.$modal.msgError('请填写付款金额')
+      mockPayment(this.currentMatch.matchId, { amount: this.paymentForm.amount, remark: this.paymentForm.remark }).then(() => {
+        this.$modal.msgSuccess('模拟支付成功')
+        this.openPayments(this.currentMatch)
+      })
+    },
+    handlePaymentRow(row, status) {
+      const action = status === '1' ? '确认' : '驳回'
+      this.$prompt(`请输入${action}意见`, `付款${action}`, { inputValidator: value => !!value || '请输入处理意见' })
+        .then(({ value }) => handlePayment(row.paymentId, { status, handleRemark: value }))
+        .then(() => { this.$modal.msgSuccess(`付款已${action}`); this.loadAll() })
+        .catch(() => {})
+    },
+    submitFollowup() {
+      if (!this.followupForm.matchId || !this.followupForm.content) return this.$modal.msgError('请填写订单ID和回访内容')
+      addFollowup(this.followupForm.matchId, this.followupForm).then(() => {
+        this.$modal.msgSuccess('回访记录已添加')
+        this.followupForm = emptyFollowup()
+        this.loadCurrentTab()
+      })
+    },
+    openLearner(row) {
+      this.learnerForm = row ? { ...row } : emptyLearner()
+      this.learnerDialog = true
+    },
+    submitLearner() {
+      if (!this.learnerForm.learnerName || !this.learnerForm.grade) return this.$modal.msgError('请填写学员姓名和年级')
+      saveLearner(this.learnerForm).then(() => {
+        this.$modal.msgSuccess('学员档案已保存')
+        this.learnerDialog = false
+        this.loadCurrentTab()
+      })
+    },
+    removeLearner(row) {
+      this.$modal.confirm('确认删除该学员档案吗？').then(() => deleteLearner(row.learnerId)).then(() => {
+        this.$modal.msgSuccess('学员档案已删除')
+        this.loadCurrentTab()
+      }).catch(() => {})
+    },
+    addAvailabilityRow() {
+      if (!this.availabilityForm.weekDay || !this.availabilityForm.startTime || !this.availabilityForm.endTime) return this.$modal.msgError('请填写星期和时间段')
+      addAvailability(this.availabilityForm).then(() => {
+        this.$modal.msgSuccess('授课时间已添加')
+        this.availabilityForm = emptyAvailability()
+        this.loadCurrentTab()
+      })
+    },
+    removeAvailabilityRow(row) {
+      deleteAvailability(row.availabilityId).then(() => {
+        this.$modal.msgSuccess('授课时间已删除')
+        this.loadCurrentTab()
+      })
+    },
+    openTrial(row) {
+      this.trialForm = { matchId: row.matchId, trialTime: row.trialTime || '', trialRemark: row.trialRemark || '' }
+      this.trialDialog = true
+    },
+    submitTrial() {
+      if (!this.trialForm.trialTime) return this.$modal.msgError('请选择试听课时间')
+      scheduleTrial(this.trialForm.matchId, this.trialForm).then(() => {
+        this.$modal.msgSuccess('试听课已安排')
+        this.trialDialog = false
+        this.loadAll()
+      })
+    },
+    completeTrialRow(row) {
+      this.$modal.confirm('确认试听课已完成吗？').then(() => completeTrial(row.matchId)).then(() => {
+        this.$modal.msgSuccess('试听课已完成')
+        this.loadAll()
+      }).catch(() => {})
+    },
+    settleSettlementRow(row) {
+      this.$modal.confirm('确认将该课时费标记为已结算吗？').then(() => settleSettlement(row.settlementId)).then(() => {
+        this.$modal.msgSuccess('结算状态已更新')
+        this.loadAll()
+      }).catch(() => {})
+    },
+    openTicket() {
+      this.ticketForm = emptyTicket()
+      this.ticketDialog = true
+    },
+    submitTicketForm() {
+      if (!this.ticketForm.title || !this.ticketForm.content) return this.$modal.msgError('请填写工单标题和问题描述')
+      submitTicket(this.ticketForm).then(() => {
+        this.$modal.msgSuccess('工单已提交')
+        this.ticketDialog = false
+        this.loadCurrentTab()
+      })
+    },
+    handleTicketRow(row, status) {
+      const action = status === '1' ? '解决' : '关闭'
+      this.$prompt(`请输入${action}意见`, `工单${action}`, { inputValidator: value => !!value || '请输入处理意见' })
+        .then(({ value }) => handleTicket(row.ticketId, { status, handleRemark: value }))
+        .then(() => { this.$modal.msgSuccess(`工单已${action}`); this.loadAll() })
+        .catch(() => {})
     },
     openProfile() {
       this.loadProfile(true)
@@ -647,6 +1750,12 @@ export default {
         this.loadAll()
       }).catch(() => {})
     },
+    copyOwnRequest(row) {
+      this.$modal.confirm('确认复制并重新发布该需求吗？').then(() => copyRequest(row.requestId)).then(() => {
+        this.$modal.msgSuccess('需求已复制')
+        this.loadAll()
+      }).catch(() => {})
+    },
     openApply(row) {
       this.applyForm = { requestId: row.requestId, quotedRate: row.hourlyBudget, applicationText: '' }
       this.applyDialog = true
@@ -667,6 +1776,18 @@ export default {
         this.loadAll()
       }).catch(() => {})
     },
+    cancelAcceptedMatch(row) {
+      this.$prompt('请输入取消原因', '取消订单', { inputValidator: value => !!value || '请填写取消原因' })
+        .then(({ value }) => cancelMatch(row.matchId, { cancelReason: value }))
+        .then(() => { this.$modal.msgSuccess('订单已取消'); this.loadAll() })
+        .catch(() => {})
+    },
+    rescheduleAcceptedMatch(row) {
+      this.$prompt('请输入调整后的上课时间', '订单改期', { inputValue: row.rescheduleText || '', inputValidator: value => !!value || '请填写新时间' })
+        .then(({ value }) => rescheduleMatch(row.matchId, { rescheduleText: value }))
+        .then(() => { this.$modal.msgSuccess('时间已调整'); this.loadAll() })
+        .catch(() => {})
+    },
     viewTutor(userId) {
       getTutorProfile(userId).then(r => {
         this.tutorDetail = r.data || {}
@@ -675,7 +1796,7 @@ export default {
     },
     openLessons(row) {
       this.currentMatch = row
-      this.lessonForm = { lessonDate: '', hours: 1, content: '' }
+      this.lessonForm = { lessonDate: '', hours: 1, content: '', studentPerformance: '', homework: '', nextPlan: '' }
       listLessons(row.matchId).then(r => {
         this.lessons = r.data || []
         this.lessonDialog = true
@@ -688,9 +1809,22 @@ export default {
         this.openLessons(this.currentMatch)
       })
     },
+    confirmLessonRow(row) {
+      confirmLesson(this.currentMatch.matchId, row.lessonId).then(() => {
+        this.$modal.msgSuccess('课时已确认')
+        this.openLessons(this.currentMatch)
+      })
+    },
     markRead(row) {
       readNotification(row.notificationId).then(() => {
         row.readStatus = '1'
+        this.loadNotifications()
+      })
+    },
+    markAllRead() {
+      readAllNotifications().then(() => {
+        this.$modal.msgSuccess('已全部标记为已读')
+        this.loadNotifications()
       })
     },
     openComplaint(row) {
@@ -782,11 +1916,55 @@ export default {
 </script>
 
 <style scoped>
+.tutoring-page { min-height: calc(100vh - 84px); padding: 16px; background: #f5f7fb; }
 .text-danger { color: #f56c6c; }
-.filter-form { margin-bottom: 4px; }
+.table-toolbar { margin-bottom: 10px; }
+.workbench-shell { max-width: 1440px; margin: 0 auto; }
+.workbench-hero { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; padding: 18px 20px; border: 1px solid #e4e9f2; border-radius: 8px; background: #fff; box-shadow: 0 6px 18px rgba(31, 45, 61, 0.05); }
+.hero-copy h2 { margin: 8px 0 6px; color: #1f2d3d; font-size: 22px; line-height: 1.3; font-weight: 600; }
+.hero-copy p { margin: 0; color: #606b7b; line-height: 1.6; }
+.role-chip { display: inline-flex; align-items: center; gap: 6px; color: #2f6fdd; font-size: 13px; font-weight: 600; }
+.hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.hero-actions .el-button + .el-button { margin-left: 0; }
+.workbench-account { display: inline-flex; }
+.account-button { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid #dcdfe6; border-radius: 4px; color: #303133; background: #fff; cursor: pointer; }
+.account-button:hover { border-color: #c6d8f6; color: #2f6fdd; background: #f7fbff; }
+.account-button img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.account-button span { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.metric-row { margin-bottom: 12px; }
+.metric-card { display: flex; align-items: center; gap: 12px; min-height: 92px; margin-bottom: 12px; padding: 14px; border: 1px solid #e4e9f2; border-radius: 8px; background: #fff; }
+.metric-card > i { flex: 0 0 36px; height: 36px; border-radius: 8px; color: #2f6fdd; background: #edf4ff; font-size: 18px; line-height: 36px; text-align: center; }
+.metric-card.is-warning > i { color: #b56a00; background: #fff4df; }
+.metric-value { color: #1f2d3d; font-size: 24px; line-height: 1.2; font-weight: 700; }
+.metric-label { margin-top: 2px; color: #303133; font-size: 13px; font-weight: 600; }
+.metric-note { margin-top: 4px; color: #8a96a8; font-size: 12px; line-height: 1.3; }
+.module-switcher { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 10px; border: 1px solid #e4e9f2; border-radius: 8px; background: #fff; }
+.module-tab { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid transparent; border-radius: 6px; color: #4d5b6c; background: transparent; font-size: 14px; line-height: 34px; cursor: pointer; }
+.module-tab:hover { color: #2f6fdd; background: #f4f8ff; }
+.module-tab.active { color: #2f6fdd; border-color: #cfe0ff; background: #edf4ff; font-weight: 600; }
+.module-tab em { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; color: #fff; background: #f56c6c; font-style: normal; font-size: 12px; line-height: 18px; text-align: center; }
+.workbench-content { padding: 14px; border: 1px solid #e4e9f2; border-radius: 8px; background: #fff; }
+.content-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #eef1f6; }
+.content-header h3 { margin: 0; color: #1f2d3d; font-size: 18px; line-height: 1.4; font-weight: 600; }
+.content-header p { margin: 4px 0 0; color: #7a8698; line-height: 1.5; }
+.workbench-tabs >>> .el-tabs__header { display: none; }
+.workbench-tabs >>> .el-tabs__content { padding: 0; overflow: visible; }
+.filter-form { margin-bottom: 12px; padding: 12px 12px 0; border: 1px solid #eef1f6; border-radius: 6px; background: #fafbfc; }
 .budget-input { width: 110px; }
 .budget-separator { margin: 0 4px; color: #909399; }
-.stat-card { margin-bottom: 16px; padding: 20px 12px; text-align: center; border: 1px solid #ebeef5; border-radius: 4px; background: #fff; }
-.stat-value { color: #409eff; font-size: 28px; font-weight: 600; }
+.stat-card { margin-bottom: 16px; padding: 18px 12px; text-align: center; border: 1px solid #e4e9f2; border-radius: 8px; background: #fff; }
+.stat-value { color: #2f6fdd; font-size: 28px; font-weight: 600; }
 .stat-label { margin-top: 8px; color: #606266; }
+@media (max-width: 992px) {
+  .module-switcher { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .module-tab { justify-content: center; }
+}
+@media (max-width: 640px) {
+  .tutoring-page { padding: 10px; }
+  .workbench-hero, .content-header { display: block; }
+  .hero-actions { justify-content: flex-start; margin-top: 12px; }
+  .module-switcher { grid-template-columns: 1fr; }
+  .metric-card { min-height: 86px; padding: 12px; }
+  .metric-value { font-size: 20px; }
+}
 </style>

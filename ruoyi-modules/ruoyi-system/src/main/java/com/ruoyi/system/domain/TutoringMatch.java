@@ -22,6 +22,11 @@ public class TutoringMatch extends BaseEntity
     private BigDecimal quotedRate;
     private String applicationText;
     private String status;
+    private String cancelReason;
+    private String rescheduleText;
+    private String trialTime;
+    private String trialRemark;
+    private String trialStatus;
     private Integer rating;
     private String reviewText;
 
@@ -50,6 +55,16 @@ public class TutoringMatch extends BaseEntity
     public void setApplicationText(String applicationText) { this.applicationText = applicationText; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getCancelReason() { return cancelReason; }
+    public void setCancelReason(String cancelReason) { this.cancelReason = cancelReason; }
+    public String getRescheduleText() { return rescheduleText; }
+    public void setRescheduleText(String rescheduleText) { this.rescheduleText = rescheduleText; }
+    public String getTrialTime() { return trialTime; }
+    public void setTrialTime(String trialTime) { this.trialTime = trialTime; }
+    public String getTrialRemark() { return trialRemark; }
+    public void setTrialRemark(String trialRemark) { this.trialRemark = trialRemark; }
+    public String getTrialStatus() { return trialStatus; }
+    public void setTrialStatus(String trialStatus) { this.trialStatus = trialStatus; }
 
     @Min(value = 1, message = "评分不能低于1")
     @Max(value = 5, message = "评分不能高于5")

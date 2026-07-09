@@ -2,28 +2,32 @@ const CONFIGS = {
   admin: {
     defaultTab: 'dashboard',
     toolbar: ['refresh'],
-    tabs: ['dashboard', 'businessRequests', 'businessMatches', 'verify', 'complaints'],
-    actions: { complaints: ['handle'] }
+    tabs: ['dashboard', 'businessClients', 'businessTutors', 'businessRequests', 'businessMatches', 'businessInvitations', 'businessLessons', 'businessSettlements', 'businessTickets', 'businessAnnouncements', 'businessFollowups', 'businessPayments', 'verify', 'complaints'],
+    actions: { businessSettlements: ['settle'], businessTickets: ['handle'], businessAnnouncements: ['edit', 'delete'], businessFollowups: ['add'], businessPayments: ['handle'], complaints: ['handle'] }
   },
   tutor: {
     defaultTab: 'open',
-    toolbar: ['profile', 'refresh'],
-    tabs: ['profile', 'open', 'recommended', 'matches', 'invitations', 'notifications', 'complaints'],
+    toolbar: ['refresh'],
+    tabs: ['profile', 'availability', 'open', 'recommended', 'matches', 'settlements', 'invitations', 'announcements', 'notifications', 'tickets', 'complaints'],
     actions: {
+      availability: ['delete'],
       open: ['apply'],
       recommended: ['apply'],
-      matches: ['withdraw', 'complete', 'lessons', 'complaint'],
+      matches: ['withdraw', 'complete', 'lessons', 'materials', 'messages', 'complaint', 'cancel', 'reschedule', 'trial'],
+      tickets: ['submit'],
       invitations: ['respond']
     }
   },
   client: {
-    defaultTab: 'tutors',
+    defaultTab: 'learners',
     toolbar: ['publish', 'refresh'],
-    tabs: ['tutors', 'requests', 'matches', 'favorites', 'invitations', 'notifications', 'complaints'],
+    tabs: ['learners', 'tutors', 'requests', 'matches', 'favorites', 'invitations', 'announcements', 'notifications', 'tickets', 'complaints'],
     actions: {
+      learners: ['edit', 'delete'],
       tutors: ['view', 'favorite', 'invite'],
-      requests: ['cancel'],
-      matches: ['accept', 'review', 'lessons', 'complaint'],
+      requests: ['cancel', 'copy'],
+      matches: ['accept', 'review', 'lessons', 'materials', 'messages', 'payments', 'complaint', 'cancel', 'reschedule', 'confirmLesson', 'trial'],
+      tickets: ['submit'],
       favorites: ['view', 'invite', 'unfavorite']
     }
   }
@@ -39,7 +43,7 @@ function resolveWorkbenchRole(roles) {
 
 function getWorkbenchConfig(role, options) {
   if (role === 'tutor' && options && options.tutorVerified === false) {
-    return { defaultTab: 'profile', toolbar: ['profile', 'refresh'], tabs: ['profile'], actions: {} }
+    return { defaultTab: 'profile', toolbar: ['refresh'], tabs: ['profile'], actions: {} }
   }
   return CONFIGS[role] || { defaultTab: '', toolbar: [], tabs: [], actions: {} }
 }

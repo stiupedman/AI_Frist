@@ -2,6 +2,7 @@ package com.ruoyi.system.domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Date;
 import com.ruoyi.common.core.web.domain.BaseEntity;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.DecimalMax;
@@ -15,15 +16,30 @@ public class TutoringLesson extends BaseEntity
 
     private Long lessonId;
     private Long matchId;
+    private String subject;
+    private String publisherName;
+    private String tutorName;
     private LocalDate lessonDate;
     private BigDecimal hours;
     private String content;
     private BigDecimal amount;
+    private String studentPerformance;
+    private String homework;
+    private String nextPlan;
+    private String confirmStatus;
+    private String confirmBy;
+    private Date confirmTime;
 
     public Long getLessonId() { return lessonId; }
     public void setLessonId(Long lessonId) { this.lessonId = lessonId; }
     public Long getMatchId() { return matchId; }
     public void setMatchId(Long matchId) { this.matchId = matchId; }
+    public String getSubject() { return subject; }
+    public void setSubject(String subject) { this.subject = subject; }
+    public String getPublisherName() { return publisherName; }
+    public void setPublisherName(String publisherName) { this.publisherName = publisherName; }
+    public String getTutorName() { return tutorName; }
+    public void setTutorName(String tutorName) { this.tutorName = tutorName; }
 
     @NotNull(message = "上课日期不能为空")
     public LocalDate getLessonDate() { return lessonDate; }
@@ -41,4 +57,16 @@ public class TutoringLesson extends BaseEntity
     public void setContent(String content) { this.content = content; }
     public BigDecimal getAmount() { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public String getStudentPerformance() { return studentPerformance; }
+    public void setStudentPerformance(String studentPerformance) { this.studentPerformance = studentPerformance; }
+    public String getHomework() { return homework; }
+    public void setHomework(String homework) { this.homework = homework; }
+    public String getNextPlan() { return nextPlan; }
+    public void setNextPlan(String nextPlan) { this.nextPlan = nextPlan; }
+    public String getConfirmStatus() { return confirmStatus; }
+    public void setConfirmStatus(String confirmStatus) { this.confirmStatus = confirmStatus; }
+    public String getConfirmBy() { return confirmBy; }
+    public void setConfirmBy(String confirmBy) { this.confirmBy = confirmBy; }
+    public Date getConfirmTime() { return confirmTime; }
+    public void setConfirmTime(Date confirmTime) { this.confirmTime = confirmTime; }
 }

@@ -313,5 +313,9 @@ CREATE TABLE `ai_resource_version` (
   KEY `idx_ai_resource_ver_gmt_modified` (`gmt_modified`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI资源版本表';
 
+UPDATE config_info
+SET content = REPLACE(content, '      - /csrf\n\n# springdoc配置', '      - /csrf\n      - /system/tutoring/ws/messages/**\n\n# springdoc配置')
+WHERE data_id = 'ruoyi-gateway-dev.yml';
+
 UPDATE config_info SET md5 = MD5(content);
 

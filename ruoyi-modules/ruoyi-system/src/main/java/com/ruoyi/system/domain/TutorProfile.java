@@ -14,11 +14,16 @@ public class TutorProfile extends BaseEntity
     private Long profileId;
     private Long userId;
     private String userName;
+    private String loginName;
+    private String email;
+    private String phonenumber;
+    private String userStatus;
     private String university;
     private String major;
     private String collegeYear;
     private String subjects;
     private BigDecimal hourlyRate;
+    private String availabilityText;
     private String introduction;
     private String verifyStatus;
     private String verifyRemark;
@@ -33,6 +38,14 @@ public class TutorProfile extends BaseEntity
     public void setUserId(Long userId) { this.userId = userId; }
     public String getUserName() { return userName; }
     public void setUserName(String userName) { this.userName = userName; }
+    public String getLoginName() { return loginName; }
+    public void setLoginName(String loginName) { this.loginName = loginName; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPhonenumber() { return phonenumber; }
+    public void setPhonenumber(String phonenumber) { this.phonenumber = phonenumber; }
+    public String getUserStatus() { return userStatus; }
+    public void setUserStatus(String userStatus) { this.userStatus = userStatus; }
 
     @NotBlank(message = "学校不能为空")
     @Size(max = 100, message = "学校长度不能超过100个字符")
@@ -58,6 +71,10 @@ public class TutorProfile extends BaseEntity
     @DecimalMin(value = "0.01", message = "课时费必须大于0")
     public BigDecimal getHourlyRate() { return hourlyRate; }
     public void setHourlyRate(BigDecimal hourlyRate) { this.hourlyRate = hourlyRate; }
+
+    @Size(max = 200, message = "可授课时间长度不能超过200个字符")
+    public String getAvailabilityText() { return availabilityText; }
+    public void setAvailabilityText(String availabilityText) { this.availabilityText = availabilityText; }
 
     @Size(max = 500, message = "个人简介长度不能超过500个字符")
     public String getIntroduction() { return introduction; }

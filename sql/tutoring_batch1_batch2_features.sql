@@ -1,104 +1,118 @@
--- 家教业务扩展功能（在 tutoring.sql 之后执行一次）
+-- Existing databases that already ran tutoring_features.sql can run this safely more than once.
 SET NAMES utf8mb4;
 USE `ry-cloud`;
 
-ALTER TABLE tutor_profile
-  ADD COLUMN student_card_url varchar(500) default '' COMMENT '学生证图片',
-  ADD COLUMN qualification_url varchar(500) default '' COMMENT '资格证图片',
-  ADD COLUMN availability_text varchar(200) default '' COMMENT '可授课时间';
+DROP PROCEDURE IF EXISTS add_tutoring_column_if_missing;
+DELIMITER //
+CREATE PROCEDURE add_tutoring_column_if_missing(
+  IN p_table_name varchar(64),
+  IN p_column_name varchar(64),
+  IN p_column_sql text
+)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM information_schema.columns
+     WHERE table_schema = DATABASE()
+       AND table_name = p_table_name
+       AND column_name = p_column_name
+  ) THEN
+    SET @ddl = CONCAT('ALTER TABLE `', REPLACE(p_table_name, '`', '``'), '` ADD COLUMN ', p_column_sql);
+    PREPARE stmt FROM @ddl;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+  END IF;
+END//
+DELIMITER ;
 
-ALTER TABLE tutoring_match
-  ADD COLUMN cancel_reason varchar(500) default '' COMMENT '取消原因',
-  ADD COLUMN reschedule_text varchar(200) default '' COMMENT '调整后时间',
-  ADD COLUMN trial_time datetime COMMENT '试听课时间',
-  ADD COLUMN trial_remark varchar(500) default '' COMMENT '试听备注',
-  ADD COLUMN trial_status char(1) default '0' COMMENT '试听状态（0未安排 1待试听 2已完成）';
+CALL add_tutoring_column_if_missing(
+  'tutor_profile',
+  'availability_text',
+  '`availability_text` varchar(200) default '''' COMMENT ''可授课时间'''
+);
 
-CREATE TABLE tutoring_lesson (
-  lesson_id       bigint(20)    NOT NULL AUTO_INCREMENT COMMENT '上课记录ID',
-  match_id        bigint(20)    NOT NULL COMMENT '订单ID',
-  lesson_date     date          NOT NULL COMMENT '上课日期',
-  hours           decimal(5,2)  NOT NULL COMMENT '课时数',
-  content         varchar(500)  NOT NULL COMMENT '授课内容',
-  amount          decimal(10,2) NOT NULL COMMENT '本次课时费',
-  student_performance varchar(500) default '' COMMENT '课堂表现',
-  homework       varchar(500)  default '' COMMENT '课后作业',
-  next_plan      varchar(500)  default '' COMMENT '下节计划',
-  confirm_status  char(1)       default '0' COMMENT '确认状态（0待确认 1已确认）',
-  confirm_by      varchar(64)   default '' COMMENT '确认人',
-  confirm_time    datetime,
-  create_by       varchar(64)   default '',
-  create_time     datetime,
-  PRIMARY KEY (lesson_id),
-  KEY idx_lesson_match (match_id, lesson_date)
-) ENGINE=InnoDB COMMENT='上课记录';
+CALL add_tutoring_column_if_missing(
+  'tutoring_match',
+  'cancel_reason',
+  '`cancel_reason` varchar(500) default '''' COMMENT ''取消原因'''
+);
 
-CREATE TABLE tutoring_notification (
-  notification_id bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '通知ID',
-  user_id          bigint(20)   NOT NULL COMMENT '接收用户ID',
-  title            varchar(100) NOT NULL COMMENT '标题',
-  content          varchar(500) NOT NULL COMMENT '内容',
-  read_status      char(1)      default '0' COMMENT '是否已读（0否 1是）',
-  create_time      datetime,
-  PRIMARY KEY (notification_id),
-  KEY idx_notification_user (user_id, read_status, create_time)
-) ENGINE=InnoDB COMMENT='家教业务通知';
+CALL add_tutoring_column_if_missing(
+  'tutoring_match',
+  'reschedule_text',
+  '`reschedule_text` varchar(200) default '''' COMMENT ''调整后时间'''
+);
 
-CREATE TABLE tutoring_complaint (
-  complaint_id    bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '投诉ID',
-  match_id        bigint(20)   NOT NULL COMMENT '订单ID',
-  complainant_id  bigint(20)   NOT NULL COMMENT '投诉人用户ID',
-  reason          varchar(500) NOT NULL COMMENT '投诉原因',
-  status          char(1)      default '0' COMMENT '状态（0待处理 1已解决 2已驳回）',
-  handle_remark   varchar(500) default '' COMMENT '处理意见',
-  handle_by       varchar(64)  default '' COMMENT '处理人',
-  create_time     datetime,
-  update_time     datetime,
-  PRIMARY KEY (complaint_id),
-  UNIQUE KEY uk_complaint_match_user (match_id, complainant_id),
-  KEY idx_complaint_status (status, create_time)
-) ENGINE=InnoDB COMMENT='订单投诉';
+CALL add_tutoring_column_if_missing(
+  'tutoring_match',
+  'trial_time',
+  '`trial_time` datetime COMMENT ''试听课时间'''
+);
 
-CREATE TABLE tutoring_complaint_log (
-  log_id       bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '投诉记录ID',
-  complaint_id bigint(20)   NOT NULL COMMENT '投诉ID',
-  action_text  varchar(500) NOT NULL COMMENT '处理记录',
-  create_by    varchar(64)  default '',
-  create_time  datetime,
+CALL add_tutoring_column_if_missing(
+  'tutoring_match',
+  'trial_remark',
+  '`trial_remark` varchar(500) default '''' COMMENT ''试听备注'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_match',
+  'trial_status',
+  '`trial_status` char(1) default ''0'' COMMENT ''试听状态（0未安排 1待试听 2已完成）'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'confirm_status',
+  '`confirm_status` char(1) default ''0'' COMMENT ''确认状态（0待确认 1已确认）'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'student_performance',
+  '`student_performance` varchar(500) default '''' COMMENT ''课堂表现'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'homework',
+  '`homework` varchar(500) default '''' COMMENT ''课后作业'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'next_plan',
+  '`next_plan` varchar(500) default '''' COMMENT ''下节计划'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'confirm_by',
+  '`confirm_by` varchar(64) default '''' COMMENT ''确认人'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'confirm_time',
+  '`confirm_time` datetime'
+);
+
+DROP PROCEDURE IF EXISTS add_tutoring_column_if_missing;
+
+UPDATE tutoring_lesson SET confirm_status = '0' WHERE confirm_status IS NULL;
+UPDATE tutoring_match SET trial_status = '0' WHERE trial_status IS NULL;
+
+CREATE TABLE IF NOT EXISTS tutoring_complaint_log (
+  log_id        bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '投诉记录ID',
+  complaint_id  bigint(20)   NOT NULL COMMENT '投诉ID',
+  action_text   varchar(500) NOT NULL COMMENT '处理记录',
+  create_by     varchar(64)  default '',
+  create_time   datetime,
   PRIMARY KEY (log_id),
   KEY idx_complaint_log (complaint_id, create_time)
 ) ENGINE=InnoDB COMMENT='投诉处理记录';
 
-CREATE TABLE tutor_favorite (
-  favorite_id bigint(20) NOT NULL AUTO_INCREMENT COMMENT '收藏ID',
-  user_id     bigint(20) NOT NULL COMMENT '收藏人用户ID',
-  tutor_id    bigint(20) NOT NULL COMMENT '教员用户ID',
-  create_time datetime,
-  PRIMARY KEY (favorite_id),
-  UNIQUE KEY uk_favorite_user_tutor (user_id, tutor_id)
-) ENGINE=InnoDB COMMENT='收藏教员';
-
-CREATE TABLE tutoring_invitation (
-  invitation_id  bigint(20)    NOT NULL AUTO_INCREMENT COMMENT '预约ID',
-  publisher_id   bigint(20)    NOT NULL COMMENT '家长用户ID',
-  tutor_id       bigint(20)    NOT NULL COMMENT '教员用户ID',
-  learner_grade  varchar(50)   NOT NULL COMMENT '学员年级',
-  subject        varchar(50)   NOT NULL COMMENT '辅导科目',
-  area           varchar(100)  NOT NULL COMMENT '授课区域',
-  schedule_text  varchar(200)  NOT NULL COMMENT '期望时间',
-  offered_rate   decimal(10,2) NOT NULL COMMENT '预约课时费',
-  message        varchar(500)  default '' COMMENT '预约说明',
-  status         char(1)       default '0' COMMENT '状态（0待处理 1已接受 2已拒绝）',
-  create_by      varchar(64)   default '',
-  create_time    datetime,
-  update_by      varchar(64)   default '',
-  update_time    datetime,
-  PRIMARY KEY (invitation_id),
-  KEY idx_invitation_tutor (tutor_id, status, create_time),
-  KEY idx_invitation_publisher (publisher_id, create_time)
-) ENGINE=InnoDB COMMENT='家教预约邀请';
-
-CREATE TABLE tutoring_learner (
+CREATE TABLE IF NOT EXISTS tutoring_learner (
   learner_id     bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '学员ID',
   user_id        bigint(20)   NOT NULL COMMENT '家长用户ID',
   learner_name   varchar(50)  NOT NULL COMMENT '学员姓名',
@@ -116,7 +130,7 @@ CREATE TABLE tutoring_learner (
   KEY idx_learner_user (user_id, create_time)
 ) ENGINE=InnoDB COMMENT='学员档案';
 
-CREATE TABLE tutor_availability (
+CREATE TABLE IF NOT EXISTS tutor_availability (
   availability_id  bigint(20)  NOT NULL AUTO_INCREMENT COMMENT '可授课时间ID',
   user_id          bigint(20)  NOT NULL COMMENT '教员用户ID',
   week_day         varchar(20) NOT NULL COMMENT '星期',
@@ -132,7 +146,7 @@ CREATE TABLE tutor_availability (
   KEY idx_availability_user (user_id, week_day, start_time)
 ) ENGINE=InnoDB COMMENT='教员可授课日历';
 
-CREATE TABLE tutoring_settlement (
+CREATE TABLE IF NOT EXISTS tutoring_settlement (
   settlement_id bigint(20)    NOT NULL AUTO_INCREMENT COMMENT '结算ID',
   lesson_id     bigint(20)    NOT NULL COMMENT '课时ID',
   match_id      bigint(20)    NOT NULL COMMENT '订单ID',
@@ -147,7 +161,7 @@ CREATE TABLE tutoring_settlement (
   KEY idx_settlement_tutor (tutor_id, status, create_time)
 ) ENGINE=InnoDB COMMENT='课时费结算';
 
-CREATE TABLE tutoring_ticket (
+CREATE TABLE IF NOT EXISTS tutoring_ticket (
   ticket_id     bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '工单ID',
   user_id       bigint(20)   NOT NULL COMMENT '提交用户ID',
   title         varchar(100) NOT NULL COMMENT '标题',
@@ -163,7 +177,7 @@ CREATE TABLE tutoring_ticket (
   KEY idx_ticket_user (user_id, create_time)
 ) ENGINE=InnoDB COMMENT='客服工单';
 
-CREATE TABLE tutoring_announcement (
+CREATE TABLE IF NOT EXISTS tutoring_announcement (
   announcement_id bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '公告ID',
   title           varchar(100) NOT NULL COMMENT '标题',
   content         varchar(1000) NOT NULL COMMENT '内容',
@@ -177,7 +191,7 @@ CREATE TABLE tutoring_announcement (
   KEY idx_announcement_status (status, publish_time)
 ) ENGINE=InnoDB COMMENT='平台公告';
 
-CREATE TABLE tutoring_material (
+CREATE TABLE IF NOT EXISTS tutoring_material (
   material_id bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '资料ID',
   match_id    bigint(20)   NOT NULL COMMENT '订单ID',
   uploader_id bigint(20)   NOT NULL COMMENT '上传用户ID',
@@ -190,7 +204,7 @@ CREATE TABLE tutoring_material (
   KEY idx_material_match (match_id, create_time)
 ) ENGINE=InnoDB COMMENT='课程资料';
 
-CREATE TABLE tutoring_message (
+CREATE TABLE IF NOT EXISTS tutoring_message (
   message_id  bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '留言ID',
   match_id    bigint(20)   NOT NULL COMMENT '订单ID',
   sender_id   bigint(20)   NOT NULL COMMENT '发送用户ID',
@@ -201,7 +215,7 @@ CREATE TABLE tutoring_message (
   KEY idx_message_match (match_id, create_time)
 ) ENGINE=InnoDB COMMENT='订单沟通留言';
 
-CREATE TABLE tutoring_payment (
+CREATE TABLE IF NOT EXISTS tutoring_payment (
   payment_id    bigint(20)    NOT NULL AUTO_INCREMENT COMMENT '付款流水ID',
   match_id      bigint(20)    NOT NULL COMMENT '订单ID',
   payer_id      bigint(20)    NOT NULL COMMENT '付款用户ID',
@@ -219,7 +233,7 @@ CREATE TABLE tutoring_payment (
   KEY idx_payment_status (status, create_time)
 ) ENGINE=InnoDB COMMENT='订单付款流水';
 
-CREATE TABLE tutoring_followup (
+CREATE TABLE IF NOT EXISTS tutoring_followup (
   followup_id bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '回访ID',
   match_id    bigint(20)   NOT NULL COMMENT '订单ID',
   content     varchar(500) NOT NULL COMMENT '回访内容',
@@ -231,26 +245,3 @@ CREATE TABLE tutoring_followup (
   KEY idx_followup_match (match_id, create_time),
   KEY idx_followup_status (status, create_time)
 ) ENGINE=InnoDB COMMENT='订单回访记录';
-
-INSERT INTO sys_menu VALUES
-  (2011, '查找教员', 2001, 10, '', '', '', '', 1, 0, 'F', '0', '0', 'tutoring:tutor:list', '#', 'admin', sysdate(), '', null, ''),
-  (2012, '业务监管', 2001, 11, '', '', '', '', 1, 0, 'F', '0', '0', 'tutoring:business:monitor', '#', 'admin', sysdate(), '', null, '')
-ON DUPLICATE KEY UPDATE
-  menu_name = VALUES(menu_name),
-  parent_id = VALUES(parent_id),
-  order_num = VALUES(order_num),
-  path = VALUES(path),
-  component = VALUES(component),
-  `query` = VALUES(`query`),
-  route_name = VALUES(route_name),
-  is_frame = VALUES(is_frame),
-  is_cache = VALUES(is_cache),
-  menu_type = VALUES(menu_type),
-  visible = VALUES(visible),
-  status = VALUES(status),
-  perms = VALUES(perms),
-  icon = VALUES(icon),
-  remark = VALUES(remark);
-
-DELETE FROM sys_role_menu WHERE role_id = 101 AND menu_id = 2004;
-INSERT IGNORE INTO sys_role_menu VALUES (101, 2011);

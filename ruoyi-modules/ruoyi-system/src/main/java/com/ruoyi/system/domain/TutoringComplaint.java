@@ -15,6 +15,7 @@ public class TutoringComplaint
     private String status;
     private String handleRemark;
     private String handleBy;
+    private String handleTimeline;
     private Date createTime;
     private Date updateTime;
 
@@ -41,6 +42,8 @@ public class TutoringComplaint
     public void setHandleRemark(String handleRemark) { this.handleRemark = handleRemark; }
     public String getHandleBy() { return handleBy; }
     public void setHandleBy(String handleBy) { this.handleBy = handleBy; }
+    public String getHandleTimeline() { return handleTimeline; }
+    public void setHandleTimeline(String handleTimeline) { this.handleTimeline = handleTimeline; }
     public Date getCreateTime() { return createTime; }
     public void setCreateTime(Date createTime) { this.createTime = createTime; }
     public Date getUpdateTime() { return updateTime; }

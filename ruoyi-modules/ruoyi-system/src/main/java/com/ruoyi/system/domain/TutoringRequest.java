@@ -22,6 +22,7 @@ public class TutoringRequest extends BaseEntity
     private BigDecimal minBudget;
     private BigDecimal maxBudget;
     private String requirementText;
+    private String sourceChannel;
     private String status;
     private Integer matchScore;
 
@@ -64,6 +65,8 @@ public class TutoringRequest extends BaseEntity
     @Size(max = 500, message = "补充要求长度不能超过500个字符")
     public String getRequirementText() { return requirementText; }
     public void setRequirementText(String requirementText) { this.requirementText = requirementText; }
+    public String getSourceChannel() { return sourceChannel; }
+    public void setSourceChannel(String sourceChannel) { this.sourceChannel = sourceChannel; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Integer getMatchScore() { return matchScore; }

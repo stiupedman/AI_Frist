@@ -26,8 +26,11 @@ import com.ruoyi.system.api.domain.SysUser;
 import com.ruoyi.system.domain.TutorAvailability;
 import com.ruoyi.system.domain.TutorProfile;
 import com.ruoyi.system.domain.TutoringAnnouncement;
+import com.ruoyi.system.domain.TutoringBlacklist;
 import com.ruoyi.system.domain.TutoringComplaint;
+import com.ruoyi.system.domain.TutoringFinanceLedger;
 import com.ruoyi.system.domain.TutoringFollowup;
+import com.ruoyi.system.domain.TutoringHomework;
 import com.ruoyi.system.domain.TutoringInvitation;
 import com.ruoyi.system.domain.TutoringLesson;
 import com.ruoyi.system.domain.TutoringLearner;
@@ -302,6 +305,78 @@ public class TutoringController extends BaseController
         return success(service.getDashboardTodos());
     }
 
+    @RequiresPermissions("tutoring:match:list")
+    @GetMapping("/calendar/mine")
+    public AjaxResult calendarLessons()
+    {
+        return success(service.getCalendarLessons(SecurityUtils.getUserId()));
+    }
+
+    @RequiresPermissions("tutoring:match:list")
+    @GetMapping("/learning/mine")
+    public AjaxResult learningRecords()
+    {
+        return success(service.getLearningRecords(SecurityUtils.getUserId()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @GetMapping("/admin/crm")
+    public AjaxResult crmDashboard()
+    {
+        return success(service.getCrmDashboard());
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @GetMapping("/admin/risk-alerts")
+    public AjaxResult riskAlerts()
+    {
+        return success(service.getRiskAlerts());
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @GetMapping("/admin/blacklists")
+    public TableDataInfo adminBlacklists(TutoringBlacklist query)
+    {
+        startPage();
+        return getDataTable(service.getAdminBlacklists(query));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @PostMapping("/admin/blacklists")
+    public AjaxResult addBlacklist(@RequestBody TutoringBlacklist blacklist)
+    {
+        return toAjax(service.saveBlacklist(blacklist, SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @PutMapping("/admin/blacklists/{blacklistId}/disable")
+    public AjaxResult disableBlacklist(@PathVariable Long blacklistId)
+    {
+        return toAjax(service.disableBlacklist(blacklistId, SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @GetMapping("/admin/finance-ledgers")
+    public TableDataInfo financeLedgers(TutoringFinanceLedger query)
+    {
+        startPage();
+        return getDataTable(service.getFinanceLedgers(query));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @GetMapping("/admin/reports")
+    public AjaxResult operationsReport()
+    {
+        return success(service.getOperationsReport());
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @PostMapping("/admin/reminders/generate")
+    public AjaxResult generateReminders()
+    {
+        return success(service.generateReminders());
+    }
+
     @RequiresPermissions("tutoring:business:monitor")
     @PostMapping("/admin/export/{type}")
     public void export(@PathVariable String type, HttpServletResponse response, SysUser user,
@@ -351,10 +426,11 @@ public class TutoringController extends BaseController
         }
         else if ("lessons".equals(type))
         {
-            rows.add(new String[] { "match", "subject", "client", "tutor", "date", "hours", "amount", "confirmed" });
+            rows.add(new String[] { "match", "subject", "client", "tutor", "date", "start", "end", "hours", "amount", "confirmed" });
             service.getAdminLessons(lesson).forEach(item -> rows.add(new String[] {
                 text(item.getMatchId()), item.getSubject(), item.getPublisherName(), item.getTutorName(),
-                text(item.getLessonDate()), text(item.getHours()), text(item.getAmount()), item.getConfirmStatus()
+                text(item.getLessonDate()), text(item.getStartTime()), text(item.getEndTime()),
+                text(item.getHours()), text(item.getAmount()), item.getConfirmStatus()
             }));
         }
         else
@@ -502,6 +578,37 @@ public class TutoringController extends BaseController
             SecurityUtils.getUsername()));
     }
 
+    @RequiresPermissions("tutoring:match:list")
+    @GetMapping("/matches/{matchId}/homeworks")
+    public AjaxResult homeworks(@PathVariable Long matchId)
+    {
+        return success(service.getHomeworks(matchId, SecurityUtils.getUserId()));
+    }
+
+    @RequiresPermissions("tutoring:match:list")
+    @PostMapping("/matches/{matchId}/homeworks")
+    public AjaxResult addHomework(@PathVariable Long matchId, @RequestBody TutoringHomework homework)
+    {
+        return toAjax(service.addHomework(matchId, homework, SecurityUtils.getUserId(),
+            SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:match:list")
+    @PutMapping("/homeworks/{homeworkId}/submit")
+    public AjaxResult submitHomework(@PathVariable Long homeworkId, @RequestBody TutoringHomework homework)
+    {
+        return toAjax(service.submitHomework(homeworkId, homework, SecurityUtils.getUserId(),
+            SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:match:list")
+    @PutMapping("/homeworks/{homeworkId}/feedback")
+    public AjaxResult feedbackHomework(@PathVariable Long homeworkId, @RequestBody TutoringHomework homework)
+    {
+        return toAjax(service.feedbackHomework(homeworkId, homework, SecurityUtils.getUserId(),
+            SecurityUtils.getUsername()));
+    }
+
     @RequiresPermissions("tutoring:match:complete")
     @Log(title = "上课记录", businessType = BusinessType.INSERT)
     @PostMapping("/matches/{matchId}/lessons")
@@ -542,6 +649,13 @@ public class TutoringController extends BaseController
     }
 
     @RequiresPermissions("tutoring:business:monitor")
+    @PutMapping("/admin/settlements/batch/settle")
+    public AjaxResult batchSettleSettlements(@RequestBody List<Long> settlementIds)
+    {
+        return toAjax(service.batchSettleSettlements(settlementIds, SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
     @GetMapping("/admin/payments")
     public TableDataInfo adminPayments(TutoringPayment query)
     {
@@ -557,6 +671,27 @@ public class TutoringController extends BaseController
     }
 
     @RequiresPermissions("tutoring:business:monitor")
+    @PutMapping("/admin/payments/{paymentId}/refund")
+    public AjaxResult refundPayment(@PathVariable Long paymentId, @RequestBody TutoringPayment refund)
+    {
+        return toAjax(service.refundPayment(paymentId, refund, SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @PutMapping("/admin/payments/{paymentId}/reconcile")
+    public AjaxResult reconcilePayment(@PathVariable Long paymentId, @RequestBody TutoringPayment reconciliation)
+    {
+        return toAjax(service.reconcilePayment(paymentId, reconciliation, SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @PutMapping("/admin/payments/{paymentId}/invoice")
+    public AjaxResult issueInvoice(@PathVariable Long paymentId, @RequestBody TutoringPayment invoice)
+    {
+        return toAjax(service.issueInvoice(paymentId, invoice, SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
     @GetMapping("/admin/followups")
     public TableDataInfo adminFollowups(TutoringFollowup query)
     {
@@ -569,6 +704,13 @@ public class TutoringController extends BaseController
     public AjaxResult addFollowup(@PathVariable Long matchId, @RequestBody TutoringFollowup followup)
     {
         return toAjax(service.addFollowup(matchId, followup, SecurityUtils.getUsername()));
+    }
+
+    @RequiresPermissions("tutoring:business:monitor")
+    @PutMapping("/admin/followups/{followupId}/done")
+    public AjaxResult completeFollowup(@PathVariable Long followupId)
+    {
+        return toAjax(service.completeFollowup(followupId, SecurityUtils.getUsername()));
     }
 
     @RequiresPermissions("tutoring:match:list")

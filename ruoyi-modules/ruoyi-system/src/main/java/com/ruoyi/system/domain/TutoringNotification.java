@@ -8,6 +8,9 @@ public class TutoringNotification
     private Long userId;
     private String title;
     private String content;
+    private String channel;
+    private String templateCode;
+    private String sendStatus;
     private String readStatus;
     private Date createTime;
 
@@ -19,6 +22,12 @@ public class TutoringNotification
     public void setTitle(String title) { this.title = title; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public String getChannel() { return channel; }
+    public void setChannel(String channel) { this.channel = channel; }
+    public String getTemplateCode() { return templateCode; }
+    public void setTemplateCode(String templateCode) { this.templateCode = templateCode; }
+    public String getSendStatus() { return sendStatus; }
+    public void setSendStatus(String sendStatus) { this.sendStatus = sendStatus; }
     public String getReadStatus() { return readStatus; }
     public void setReadStatus(String readStatus) { this.readStatus = readStatus; }
     public Date getCreateTime() { return createTime; }

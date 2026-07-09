@@ -2,18 +2,18 @@ const CONFIGS = {
   admin: {
     defaultTab: 'dashboard',
     toolbar: ['refresh'],
-    tabs: ['dashboard', 'businessClients', 'businessTutors', 'businessRequests', 'businessMatches', 'businessInvitations', 'businessLessons', 'businessSettlements', 'businessTickets', 'businessAnnouncements', 'businessFollowups', 'businessPayments', 'verify', 'complaints'],
-    actions: { businessSettlements: ['settle'], businessTickets: ['handle'], businessAnnouncements: ['edit', 'delete'], businessFollowups: ['add'], businessPayments: ['handle'], complaints: ['handle'] }
+    tabs: ['dashboard', 'businessCrm', 'businessRisk', 'businessReports', 'businessReminders', 'businessBlacklists', 'businessLedgers', 'businessClients', 'businessTutors', 'businessRequests', 'businessMatches', 'businessInvitations', 'businessLessons', 'businessSettlements', 'businessTickets', 'businessAnnouncements', 'businessFollowups', 'businessPayments', 'verify', 'complaints'],
+    actions: { businessBlacklists: ['add', 'disable'], businessSettlements: ['settle'], businessTickets: ['handle'], businessAnnouncements: ['edit', 'delete'], businessFollowups: ['add', 'done'], businessPayments: ['handle', 'invoice'], complaints: ['handle'], businessReminders: ['generate'] }
   },
   tutor: {
     defaultTab: 'open',
     toolbar: ['refresh'],
-    tabs: ['profile', 'availability', 'open', 'recommended', 'matches', 'settlements', 'invitations', 'announcements', 'notifications', 'tickets', 'complaints'],
+    tabs: ['profile', 'availability', 'open', 'recommended', 'matches', 'calendar', 'learning', 'settlements', 'invitations', 'announcements', 'notifications', 'tickets', 'complaints'],
     actions: {
       availability: ['delete'],
       open: ['apply'],
       recommended: ['apply'],
-      matches: ['withdraw', 'complete', 'lessons', 'materials', 'messages', 'complaint', 'cancel', 'reschedule', 'trial'],
+      matches: ['withdraw', 'complete', 'lessons', 'materials', 'messages', 'homeworks', 'complaint', 'cancel', 'reschedule', 'trial'],
       tickets: ['submit'],
       invitations: ['respond']
     }
@@ -21,12 +21,12 @@ const CONFIGS = {
   client: {
     defaultTab: 'learners',
     toolbar: ['publish', 'refresh'],
-    tabs: ['learners', 'tutors', 'requests', 'matches', 'favorites', 'invitations', 'announcements', 'notifications', 'tickets', 'complaints'],
+    tabs: ['learners', 'tutors', 'requests', 'matches', 'calendar', 'learning', 'favorites', 'invitations', 'announcements', 'notifications', 'tickets', 'complaints'],
     actions: {
       learners: ['edit', 'delete'],
       tutors: ['view', 'favorite', 'invite'],
       requests: ['cancel', 'copy'],
-      matches: ['accept', 'review', 'lessons', 'materials', 'messages', 'payments', 'complaint', 'cancel', 'reschedule', 'confirmLesson', 'trial'],
+      matches: ['accept', 'review', 'lessons', 'materials', 'messages', 'homeworks', 'payments', 'complaint', 'cancel', 'reschedule', 'confirmLesson', 'trial'],
       tickets: ['submit'],
       favorites: ['view', 'invite', 'unfavorite']
     }

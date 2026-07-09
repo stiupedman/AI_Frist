@@ -2,6 +2,7 @@ package com.ruoyi.system.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +13,11 @@ import com.ruoyi.system.api.domain.SysUser;
 import com.ruoyi.system.domain.TutorAvailability;
 import com.ruoyi.system.domain.TutorProfile;
 import com.ruoyi.system.domain.TutoringAnnouncement;
+import com.ruoyi.system.domain.TutoringBlacklist;
 import com.ruoyi.system.domain.TutoringComplaint;
+import com.ruoyi.system.domain.TutoringFinanceLedger;
 import com.ruoyi.system.domain.TutoringFollowup;
+import com.ruoyi.system.domain.TutoringHomework;
 import com.ruoyi.system.domain.TutoringInvitation;
 import com.ruoyi.system.domain.TutoringLesson;
 import com.ruoyi.system.domain.TutoringLearner;
@@ -31,6 +35,9 @@ import com.ruoyi.system.mapper.TutoringMapper;
 @Service
 public class TutoringService
 {
+    // ponytail: fixed fee rate for MVP; move to config when fee rules vary.
+    private static final BigDecimal PLATFORM_FEE_RATE = new BigDecimal("0.10");
+
     @Autowired
     private TutoringMapper mapper;
 
@@ -248,7 +255,9 @@ public class TutoringService
 
     public int publishRequest(TutoringRequest request, Long userId, String username)
     {
+        requireNotBlacklisted(userId);
         request.setPublisherId(userId);
+        request.setSourceChannel(blank(request.getSourceChannel()) ? "平台发布" : request.getSourceChannel());
         request.setCreateBy(username);
         return mapper.insertRequest(request);
     }
@@ -268,6 +277,7 @@ public class TutoringService
         copy.setScheduleText(current.getScheduleText());
         copy.setHourlyBudget(current.getHourlyBudget());
         copy.setRequirementText(current.getRequirementText());
+        copy.setSourceChannel(current.getSourceChannel());
         copy.setCreateBy(username);
         return mapper.insertRequest(copy);
     }
@@ -312,6 +322,74 @@ public class TutoringService
         return mapper.selectAllLessons(query);
     }
 
+    public List<TutoringLesson> getCalendarLessons(Long userId)
+    {
+        return mapper.selectCalendarLessonsByUserId(userId);
+    }
+
+    public List<TutoringLesson> getLearningRecords(Long userId)
+    {
+        return mapper.selectLearningRecordsByUserId(userId);
+    }
+
+    public Map<String, Object> getCrmDashboard()
+    {
+        Map<String, Object> crm = new LinkedHashMap<>(mapper.selectCrmStats());
+        crm.put("sourceStats", mapper.selectSourceStats());
+        return crm;
+    }
+
+    public Map<String, Object> getOperationsReport()
+    {
+        Map<String, Object> report = new LinkedHashMap<>(mapper.selectOperationsReport());
+        report.put("subjectHeat", mapper.selectSubjectHeat());
+        return report;
+    }
+
+    public List<Map<String, Object>> getRiskAlerts()
+    {
+        return mapper.selectRiskAlerts();
+    }
+
+    public List<TutoringBlacklist> getAdminBlacklists(TutoringBlacklist query)
+    {
+        return mapper.selectBlacklists(query);
+    }
+
+    public int saveBlacklist(TutoringBlacklist blacklist, String username)
+    {
+        if (blacklist == null || blacklist.getUserId() == null || blank(blacklist.getReason()))
+        {
+            throw new ServiceException("请填写用户ID和拉黑原因");
+        }
+        blacklist.setStatus("1");
+        blacklist.setCreateBy(username);
+        return mapper.insertBlacklist(blacklist);
+    }
+
+    public int disableBlacklist(Long blacklistId, String username)
+    {
+        if (mapper.disableBlacklist(blacklistId, username) != 1)
+        {
+            throw new ServiceException("黑名单记录不存在或已停用");
+        }
+        return 1;
+    }
+
+    public List<TutoringFinanceLedger> getFinanceLedgers(TutoringFinanceLedger query)
+    {
+        return mapper.selectFinanceLedgers(query);
+    }
+
+    public Map<String, Object> generateReminders()
+    {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("lessonReminders", mapper.insertLessonReminders());
+        result.put("paymentReminders", mapper.insertPaymentReminders());
+        result.put("ticketReminders", mapper.insertTicketReminders());
+        return result;
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public int closeAdminMatch(Long matchId, String username)
     {
@@ -346,6 +424,7 @@ public class TutoringService
     @Transactional(rollbackFor = Exception.class)
     public int apply(Long requestId, TutoringMatch match, Long userId, String username)
     {
+        requireNotBlacklisted(userId);
         TutoringRequest request = requireRequest(requestId);
         if (!TutoringStatus.REQUEST_OPEN.equals(request.getStatus()))
         {
@@ -624,8 +703,85 @@ public class TutoringService
         return mapper.selectPaymentsByMatchId(matchId);
     }
 
+    public List<TutoringHomework> getHomeworks(Long matchId, Long userId)
+    {
+        TutoringMatch match = requireMatch(matchId);
+        requireParticipant(match, userId);
+        return mapper.selectHomeworksByMatchId(matchId);
+    }
+
+    public int addHomework(Long matchId, TutoringHomework homework, Long userId, String username)
+    {
+        TutoringMatch match = requireMatch(matchId);
+        if (!userId.equals(match.getTutorId()))
+        {
+            throw new ServiceException("只能由教员布置作业");
+        }
+        if (!TutoringStatus.MATCH_ACCEPTED.equals(match.getStatus())
+            && !TutoringStatus.MATCH_COMPLETED.equals(match.getStatus()))
+        {
+            throw new ServiceException("只有进行中或已完成订单可以布置作业");
+        }
+        if (homework == null || blank(homework.getTitle()) || blank(homework.getContent()))
+        {
+            throw new ServiceException("请填写作业标题和内容");
+        }
+        homework.setMatchId(matchId);
+        homework.setAssignBy(username);
+        homework.setStatus("0");
+        homework.setCreateBy(username);
+        int rows = mapper.insertHomework(homework);
+        notify(match.getPublisherId(), "收到课后作业", "“" + match.getSubject() + "”有新的课后作业");
+        return rows;
+    }
+
+    public int submitHomework(Long homeworkId, TutoringHomework homework, Long userId, String username)
+    {
+        TutoringHomework current = requireHomework(homeworkId);
+        TutoringMatch match = requireMatch(current.getMatchId());
+        if (!userId.equals(match.getPublisherId()))
+        {
+            throw new ServiceException("只能提交自己订单下的作业");
+        }
+        if (homework == null || blank(homework.getSubmitText()))
+        {
+            throw new ServiceException("请填写作业提交内容");
+        }
+        homework.setHomeworkId(homeworkId);
+        homework.setSubmitBy(username);
+        if (mapper.submitHomework(homework) != 1)
+        {
+            throw new ServiceException("作业已提交或不存在");
+        }
+        notify(match.getTutorId(), "作业已提交", "“" + match.getSubject() + "”作业已提交待反馈");
+        return 1;
+    }
+
+    public int feedbackHomework(Long homeworkId, TutoringHomework homework, Long userId, String username)
+    {
+        TutoringHomework current = requireHomework(homeworkId);
+        TutoringMatch match = requireMatch(current.getMatchId());
+        if (!userId.equals(match.getTutorId()))
+        {
+            throw new ServiceException("只能由教员反馈作业");
+        }
+        if (homework == null || blank(homework.getFeedback()))
+        {
+            throw new ServiceException("请填写作业反馈");
+        }
+        homework.setHomeworkId(homeworkId);
+        homework.setCheckBy(username);
+        if (mapper.feedbackHomework(homework) != 1)
+        {
+            throw new ServiceException("作业未提交或已反馈");
+        }
+        notify(match.getPublisherId(), "作业已反馈", "“" + match.getSubject() + "”作业已有教员反馈");
+        return 1;
+    }
+
     public int addPayment(Long matchId, TutoringPayment payment, Long userId, String username)
     {
+        requireNotBlacklisted(userId);
         TutoringMatch match = requireMatch(matchId);
         requireParticipant(match, userId);
         if (!userId.equals(match.getPublisherId()))
@@ -644,15 +800,22 @@ public class TutoringService
         }
         payment.setMatchId(matchId);
         payment.setPayerId(userId);
+        payment.setPayMethod(blank(payment.getPayMethod()) ? "voucher" : payment.getPayMethod());
+        payment.setPlatformFee(fee(payment.getAmount()));
+        payment.setRefundAmount(BigDecimal.ZERO);
+        payment.setReconciledStatus("0");
         payment.setStatus("0");
         payment.setCreateBy(username);
         int rows = mapper.insertPayment(payment);
+        addLedger(matchId, userId, "payment", payment.getPaymentId(), payment.getAmount(), "in", "pending",
+            "提交付款凭证", username);
         notify(match.getTutorId(), "家长已提交付款凭证", "“" + match.getSubject() + "”订单有新的付款凭证待平台确认");
         return rows;
     }
 
     public int mockPayment(Long matchId, TutoringPayment payment, Long userId, String username)
     {
+        requireNotBlacklisted(userId);
         TutoringMatch match = requireMatch(matchId);
         requireParticipant(match, userId);
         if (!userId.equals(match.getPublisherId()))
@@ -667,10 +830,18 @@ public class TutoringService
         payment.setMatchId(matchId);
         payment.setPayerId(userId);
         payment.setProofUrl("平台模拟支付");
+        payment.setPayMethod("mock");
+        payment.setTradeNo("MOCK-" + System.currentTimeMillis());
+        payment.setPlatformFee(fee(payment.getAmount()));
+        payment.setRefundAmount(BigDecimal.ZERO);
+        payment.setReceiptNo("RCPT-" + System.currentTimeMillis());
+        payment.setReconciledStatus("0");
         payment.setRemark(blank(payment.getRemark()) ? "模拟支付成功" : payment.getRemark());
         payment.setStatus("1");
         payment.setCreateBy(username);
         int rows = mapper.insertPayment(payment);
+        addLedger(matchId, userId, "payment", payment.getPaymentId(), payment.getAmount(), "in", "confirmed",
+            "模拟支付成功", username);
         notify(match.getTutorId(), "订单付款已完成", "“" + match.getSubject() + "”订单收到平台模拟支付");
         return rows;
     }
@@ -694,16 +865,122 @@ public class TutoringService
         }
         handling.setPaymentId(paymentId);
         handling.setHandleBy(username);
+        handling.setPlatformFee("1".equals(handling.getStatus()) ? fee(payment.getAmount()) : BigDecimal.ZERO);
+        if ("1".equals(handling.getStatus()) && blank(handling.getReceiptNo()))
+        {
+            handling.setReceiptNo("RCPT-" + paymentId);
+        }
         if (mapper.handlePayment(handling) != 1)
         {
             throw new ServiceException("该付款流水已处理");
         }
         TutoringMatch match = requireMatch(payment.getMatchId());
+        addLedger(payment.getMatchId(), payment.getPayerId(), "payment", paymentId, payment.getAmount(),
+            "in", "1".equals(handling.getStatus()) ? "confirmed" : "rejected",
+            "付款" + ("1".equals(handling.getStatus()) ? "确认" : "驳回"), username);
         notify(payment.getPayerId(), "付款凭证已处理", "你的“" + payment.getSubject() + "”订单付款凭证已处理");
         if ("1".equals(handling.getStatus()))
         {
             notify(match.getTutorId(), "订单付款已确认", "“" + payment.getSubject() + "”订单付款已由平台确认");
         }
+        return 1;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public int refundPayment(Long paymentId, TutoringPayment refund, String username)
+    {
+        TutoringPayment payment = mapper.selectPaymentById(paymentId);
+        if (payment == null)
+        {
+            throw new ServiceException("付款流水不存在");
+        }
+        BigDecimal amount = refund == null ? null : refund.getRefundAmount();
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0 || amount.compareTo(payment.getAmount()) > 0)
+        {
+            throw new ServiceException("退款金额不正确");
+        }
+        refund.setPaymentId(paymentId);
+        refund.setHandleBy(username);
+        if (blank(refund.getHandleRemark()))
+        {
+            refund.setHandleRemark("退款");
+        }
+        if (mapper.refundPayment(refund) != 1)
+        {
+            throw new ServiceException("只有已确认付款可以退款");
+        }
+        TutoringMatch match = requireMatch(payment.getMatchId());
+        addLedger(payment.getMatchId(), payment.getPayerId(), "refund", paymentId, amount, "out", "refunded",
+            refund.getHandleRemark(), username);
+        notify(payment.getPayerId(), "订单退款已处理", "“" + payment.getSubject() + "”订单退款金额：" + amount);
+        notify(match.getTutorId(), "订单退款已处理", "“" + payment.getSubject() + "”订单发生退款：" + amount);
+        return 1;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public int reconcilePayment(Long paymentId, TutoringPayment reconciliation, String username)
+    {
+        if (reconciliation == null)
+        {
+            reconciliation = new TutoringPayment();
+        }
+        TutoringPayment payment = mapper.selectPaymentById(paymentId);
+        if (payment == null)
+        {
+            throw new ServiceException("付款流水不存在");
+        }
+        reconciliation.setPaymentId(paymentId);
+        reconciliation.setHandleBy(username);
+        if (blank(reconciliation.getTradeNo()))
+        {
+            reconciliation.setTradeNo(payment.getTradeNo());
+        }
+        if (blank(reconciliation.getInvoiceNo()))
+        {
+            reconciliation.setInvoiceNo(payment.getInvoiceNo());
+        }
+        if (blank(reconciliation.getReceiptNo()))
+        {
+            reconciliation.setReceiptNo(blank(payment.getReceiptNo()) ? "RCPT-" + paymentId : payment.getReceiptNo());
+        }
+        if (mapper.reconcilePayment(reconciliation) != 1)
+        {
+            throw new ServiceException("只有已确认或已退款流水可以对账");
+        }
+        addLedger(payment.getMatchId(), payment.getPayerId(), "reconcile", paymentId, BigDecimal.ZERO,
+            "none", "reconciled", blank(reconciliation.getHandleRemark()) ? "对账完成" : reconciliation.getHandleRemark(),
+            username);
+        return 1;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public int issueInvoice(Long paymentId, TutoringPayment invoice, String username)
+    {
+        TutoringPayment payment = mapper.selectPaymentById(paymentId);
+        if (payment == null)
+        {
+            throw new ServiceException("付款流水不存在");
+        }
+        if (!"1".equals(payment.getStatus()) && !"3".equals(payment.getStatus()))
+        {
+            throw new ServiceException("只有已确认或已退款流水可以开票");
+        }
+        if (invoice == null)
+        {
+            invoice = new TutoringPayment();
+        }
+        invoice.setPaymentId(paymentId);
+        invoice.setHandleBy(username);
+        if (blank(invoice.getInvoiceNo()))
+        {
+            invoice.setInvoiceNo("INV-" + paymentId);
+        }
+        if (mapper.issueInvoice(invoice) != 1)
+        {
+            throw new ServiceException("开票失败");
+        }
+        addLedger(payment.getMatchId(), payment.getPayerId(), "invoice", paymentId, BigDecimal.ZERO,
+            "none", "issued", "开票：" + invoice.getInvoiceNo(), username);
         return 1;
     }
 
@@ -718,6 +995,26 @@ public class TutoringService
         if (!TutoringStatus.MATCH_ACCEPTED.equals(match.getStatus()))
         {
             throw new ServiceException("只有进行中的订单可以添加上课记录");
+        }
+        if ((lesson.getStartTime() == null) != (lesson.getEndTime() == null))
+        {
+            throw new ServiceException("请同时填写上课开始和结束时间");
+        }
+        if (lesson.getStartTime() != null)
+        {
+            if (!lesson.getStartTime().isBefore(lesson.getEndTime()))
+            {
+                throw new ServiceException("上课结束时间必须晚于开始时间");
+            }
+            if (mapper.countTutorLessonConflict(match.getTutorId(), lesson.getLessonDate(),
+                lesson.getStartTime(), lesson.getEndTime()) > 0)
+            {
+                throw new ServiceException("该教员在该时间段已有排课");
+            }
+        }
+        if (blank(lesson.getAttendanceStatus()))
+        {
+            lesson.setAttendanceStatus("1");
         }
         lesson.setMatchId(matchId);
         lesson.setAmount(match.getQuotedRate().multiply(lesson.getHours()).setScale(2, RoundingMode.HALF_UP));
@@ -767,6 +1064,15 @@ public class TutoringService
         return mapper.insertFollowup(followup);
     }
 
+    public int completeFollowup(Long followupId, String username)
+    {
+        if (mapper.completeFollowup(followupId, username) != 1)
+        {
+            throw new ServiceException("回访记录不存在或已完成");
+        }
+        return 1;
+    }
+
     public List<TutoringSettlement> getAdminSettlements(TutoringSettlement query)
     {
         return mapper.selectAllSettlements(query);
@@ -784,8 +1090,20 @@ public class TutoringService
         {
             throw new ServiceException("该结算已处理");
         }
+        addLedger(settlement.getMatchId(), settlement.getTutorId(), "settlement", settlementId,
+            settlement.getNetAmount() == null ? settlement.getAmount() : settlement.getNetAmount(),
+            "out", "settled", "课时费结算", username);
         notify(settlement.getTutorId(), "课时费已结算", "订单 " + settlement.getMatchId() + " 课时费已结算");
         return 1;
+    }
+
+    public int batchSettleSettlements(List<Long> settlementIds, String username)
+    {
+        if (settlementIds == null || settlementIds.isEmpty())
+        {
+            throw new ServiceException("请选择待结算记录");
+        }
+        return mapper.batchSettleSettlements(settlementIds, username);
     }
 
     public List<TutoringNotification> getNotifications(Long userId, TutoringNotification query)
@@ -945,6 +1263,8 @@ public class TutoringService
     @Transactional(rollbackFor = Exception.class)
     public int inviteTutor(Long tutorId, TutoringInvitation invitation, Long userId, String username)
     {
+        requireNotBlacklisted(userId);
+        requireNotBlacklisted(tutorId);
         if (userId.equals(tutorId))
         {
             throw new ServiceException("不能预约自己");
@@ -1021,9 +1341,38 @@ public class TutoringService
         return value == null || value.trim().isEmpty();
     }
 
+    private BigDecimal fee(BigDecimal amount)
+    {
+        return amount.multiply(PLATFORM_FEE_RATE).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void requireNotBlacklisted(Long userId)
+    {
+        if (mapper.countActiveBlacklist(userId) > 0)
+        {
+            throw new ServiceException("账号已被平台风控限制，请联系管理员");
+        }
+    }
+
+    private void addLedger(Long matchId, Long userId, String bizType, Long bizId, BigDecimal amount,
+        String direction, String status, String remark, String username)
+    {
+        TutoringFinanceLedger ledger = new TutoringFinanceLedger();
+        ledger.setMatchId(matchId);
+        ledger.setUserId(userId);
+        ledger.setBizType(bizType);
+        ledger.setBizId(bizId);
+        ledger.setAmount(amount == null ? BigDecimal.ZERO : amount);
+        ledger.setDirection(direction);
+        ledger.setStatus(status);
+        ledger.setRemark(remark);
+        ledger.setCreateBy(username);
+        mapper.insertFinanceLedger(ledger);
+    }
+
     private void notify(Long userId, String title, String content)
     {
-        mapper.insertNotification(userId, title, content);
+        mapper.insertNotification(userId, title, content, "site", "system");
     }
 
     private void requireParticipant(TutoringMatch match, Long userId)
@@ -1052,5 +1401,15 @@ public class TutoringService
             throw new ServiceException("家教订单不存在");
         }
         return match;
+    }
+
+    private TutoringHomework requireHomework(Long homeworkId)
+    {
+        TutoringHomework homework = mapper.selectHomeworkById(homeworkId);
+        if (homework == null)
+        {
+            throw new ServiceException("作业不存在");
+        }
+        return homework;
     }
 }

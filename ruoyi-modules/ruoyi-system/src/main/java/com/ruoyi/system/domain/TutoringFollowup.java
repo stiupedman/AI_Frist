@@ -1,5 +1,6 @@
 package com.ruoyi.system.domain;
 
+import java.util.Date;
 import com.ruoyi.common.core.web.domain.BaseEntity;
 
 public class TutoringFollowup extends BaseEntity
@@ -13,6 +14,7 @@ public class TutoringFollowup extends BaseEntity
     private String tutorName;
     private String content;
     private String nextAction;
+    private Date nextTime;
     private String status;
 
     public Long getFollowupId() { return followupId; }
@@ -29,6 +31,8 @@ public class TutoringFollowup extends BaseEntity
     public void setContent(String content) { this.content = content; }
     public String getNextAction() { return nextAction; }
     public void setNextAction(String nextAction) { this.nextAction = nextAction; }
+    public Date getNextTime() { return nextTime; }
+    public void setNextTime(Date nextTime) { this.nextTime = nextTime; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 }

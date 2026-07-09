@@ -154,6 +154,30 @@ export function getDashboardTodos() {
   return request({ url: '/system/tutoring/dashboard/todos', method: 'get' })
 }
 
+export function listCalendarLessons() {
+  return request({ url: '/system/tutoring/calendar/mine', method: 'get' })
+}
+
+export function listLearningRecords() {
+  return request({ url: '/system/tutoring/learning/mine', method: 'get' })
+}
+
+export function getCrmDashboard() {
+  return request({ url: '/system/tutoring/admin/crm', method: 'get' })
+}
+
+export function listRiskAlerts() {
+  return request({ url: '/system/tutoring/admin/risk-alerts', method: 'get' })
+}
+
+export function getOperationsReport() {
+  return request({ url: '/system/tutoring/admin/reports', method: 'get' })
+}
+
+export function generateReminders() {
+  return request({ url: '/system/tutoring/admin/reminders/generate', method: 'post' })
+}
+
 export function acceptMatch(matchId) {
   return request({ url: `/system/tutoring/matches/${matchId}/accept`, method: 'put' })
 }
@@ -206,6 +230,22 @@ export function mockPayment(matchId, data) {
   return request({ url: `/system/tutoring/matches/${matchId}/payments/mock`, method: 'post', data })
 }
 
+export function listHomeworks(matchId) {
+  return request({ url: `/system/tutoring/matches/${matchId}/homeworks`, method: 'get' })
+}
+
+export function addHomework(matchId, data) {
+  return request({ url: `/system/tutoring/matches/${matchId}/homeworks`, method: 'post', data })
+}
+
+export function submitHomework(homeworkId, data) {
+  return request({ url: `/system/tutoring/homeworks/${homeworkId}/submit`, method: 'put', data })
+}
+
+export function feedbackHomework(homeworkId, data) {
+  return request({ url: `/system/tutoring/homeworks/${homeworkId}/feedback`, method: 'put', data })
+}
+
 export function listMySettlements() {
   return request({ url: '/system/tutoring/settlements/mine', method: 'get' })
 }
@@ -218,6 +258,10 @@ export function settleSettlement(settlementId) {
   return request({ url: `/system/tutoring/admin/settlements/${settlementId}/settle`, method: 'put' })
 }
 
+export function batchSettleSettlements(settlementIds) {
+  return request({ url: '/system/tutoring/admin/settlements/batch/settle', method: 'put', data: settlementIds })
+}
+
 export function listAdminPayments(params) {
   return request({ url: '/system/tutoring/admin/payments', method: 'get', params })
 }
@@ -226,12 +270,44 @@ export function handlePayment(paymentId, data) {
   return request({ url: `/system/tutoring/admin/payments/${paymentId}/handle`, method: 'put', data })
 }
 
+export function refundPayment(paymentId, data) {
+  return request({ url: `/system/tutoring/admin/payments/${paymentId}/refund`, method: 'put', data })
+}
+
+export function reconcilePayment(paymentId, data) {
+  return request({ url: `/system/tutoring/admin/payments/${paymentId}/reconcile`, method: 'put', data })
+}
+
+export function issueInvoice(paymentId, data) {
+  return request({ url: `/system/tutoring/admin/payments/${paymentId}/invoice`, method: 'put', data })
+}
+
+export function listFinanceLedgers(params) {
+  return request({ url: '/system/tutoring/admin/finance-ledgers', method: 'get', params })
+}
+
+export function listAdminBlacklists(params) {
+  return request({ url: '/system/tutoring/admin/blacklists', method: 'get', params })
+}
+
+export function saveBlacklist(data) {
+  return request({ url: '/system/tutoring/admin/blacklists', method: 'post', data })
+}
+
+export function disableBlacklist(blacklistId) {
+  return request({ url: `/system/tutoring/admin/blacklists/${blacklistId}/disable`, method: 'put' })
+}
+
 export function listAdminFollowups(params) {
   return request({ url: '/system/tutoring/admin/followups', method: 'get', params })
 }
 
 export function addFollowup(matchId, data) {
   return request({ url: `/system/tutoring/admin/matches/${matchId}/followups`, method: 'post', data })
+}
+
+export function completeFollowup(followupId) {
+  return request({ url: `/system/tutoring/admin/followups/${followupId}/done`, method: 'put' })
 }
 
 export function listNotifications(params) {

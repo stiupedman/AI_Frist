@@ -16,6 +16,8 @@ public class TutoringSettlement extends BaseEntity
     private String publisherName;
     private String subject;
     private BigDecimal amount;
+    private BigDecimal platformFee;
+    private BigDecimal netAmount;
     private String status;
     private String settleBy;
     private Date settleTime;
@@ -36,6 +38,10 @@ public class TutoringSettlement extends BaseEntity
     public void setSubject(String subject) { this.subject = subject; }
     public BigDecimal getAmount() { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public BigDecimal getPlatformFee() { return platformFee; }
+    public void setPlatformFee(BigDecimal platformFee) { this.platformFee = platformFee; }
+    public BigDecimal getNetAmount() { return netAmount; }
+    public void setNetAmount(BigDecimal netAmount) { this.netAmount = netAmount; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getSettleBy() { return settleBy; }

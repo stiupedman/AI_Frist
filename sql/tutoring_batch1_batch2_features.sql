@@ -62,6 +62,12 @@ CALL add_tutoring_column_if_missing(
 );
 
 CALL add_tutoring_column_if_missing(
+  'tutoring_request',
+  'source_channel',
+  '`source_channel` varchar(50) default ''平台发布'' COMMENT ''来源渠道'''
+);
+
+CALL add_tutoring_column_if_missing(
   'tutoring_lesson',
   'confirm_status',
   '`confirm_status` char(1) default ''0'' COMMENT ''确认状态（0待确认 1已确认）'''
@@ -97,10 +103,134 @@ CALL add_tutoring_column_if_missing(
   '`confirm_time` datetime'
 );
 
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'start_time',
+  '`start_time` time NULL COMMENT ''开始时间'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'end_time',
+  '`end_time` time NULL COMMENT ''结束时间'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'attendance_status',
+  '`attendance_status` char(1) default ''1'' COMMENT ''出勤状态（1到课 2请假 3缺勤）'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_lesson',
+  'phase_feedback',
+  '`phase_feedback` varchar(500) default '''' COMMENT ''阶段反馈'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_settlement',
+  'platform_fee',
+  '`platform_fee` decimal(10,2) default 0 COMMENT ''平台抽成'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_settlement',
+  'net_amount',
+  '`net_amount` decimal(10,2) default 0 COMMENT ''教员净收入'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_payment',
+  'platform_fee',
+  '`platform_fee` decimal(10,2) default 0 COMMENT ''平台抽成'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_payment',
+  'refund_amount',
+  '`refund_amount` decimal(10,2) default 0 COMMENT ''退款金额'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_payment',
+  'pay_method',
+  '`pay_method` varchar(50) default '''' COMMENT ''支付方式'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_payment',
+  'trade_no',
+  '`trade_no` varchar(100) default '''' COMMENT ''交易号'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_payment',
+  'invoice_no',
+  '`invoice_no` varchar(100) default '''' COMMENT ''发票号'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_payment',
+  'receipt_no',
+  '`receipt_no` varchar(100) default '''' COMMENT ''收据号'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_payment',
+  'reconciled_status',
+  '`reconciled_status` char(1) default ''0'' COMMENT ''对账状态'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_notification',
+  'channel',
+  '`channel` varchar(20) default ''site'' COMMENT ''渠道'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_notification',
+  'template_code',
+  '`template_code` varchar(50) default ''system'' COMMENT ''模板'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_notification',
+  'send_status',
+  '`send_status` char(1) default ''0'' COMMENT ''发送状态（0待发送 1已发送）'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_followup',
+  'next_time',
+  '`next_time` datetime COMMENT ''下次跟进时间'''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_followup',
+  'update_by',
+  '`update_by` varchar(64) default '''''
+);
+
+CALL add_tutoring_column_if_missing(
+  'tutoring_followup',
+  'update_time',
+  '`update_time` datetime'
+);
+
 DROP PROCEDURE IF EXISTS add_tutoring_column_if_missing;
 
 UPDATE tutoring_lesson SET confirm_status = '0' WHERE confirm_status IS NULL;
+UPDATE tutoring_lesson SET attendance_status = '1' WHERE attendance_status IS NULL;
 UPDATE tutoring_match SET trial_status = '0' WHERE trial_status IS NULL;
+UPDATE tutoring_request SET source_channel = '平台发布' WHERE source_channel IS NULL OR source_channel = '';
+UPDATE tutoring_settlement SET platform_fee = round(amount * 0.10, 2) WHERE platform_fee IS NULL OR platform_fee = 0;
+UPDATE tutoring_settlement SET net_amount = amount - platform_fee WHERE net_amount IS NULL OR net_amount = 0;
+UPDATE tutoring_payment SET platform_fee = round(amount * 0.10, 2) WHERE status = '1' AND (platform_fee IS NULL OR platform_fee = 0);
+UPDATE tutoring_payment SET refund_amount = 0 WHERE refund_amount IS NULL;
+UPDATE tutoring_payment SET reconciled_status = '0' WHERE reconciled_status IS NULL;
+UPDATE tutoring_notification SET channel = 'site' WHERE channel IS NULL OR channel = '';
+UPDATE tutoring_notification SET template_code = 'system' WHERE template_code IS NULL OR template_code = '';
+UPDATE tutoring_notification SET send_status = '0' WHERE send_status IS NULL;
 
 CREATE TABLE IF NOT EXISTS tutoring_complaint_log (
   log_id        bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '投诉记录ID',
@@ -152,6 +282,8 @@ CREATE TABLE IF NOT EXISTS tutoring_settlement (
   match_id      bigint(20)    NOT NULL COMMENT '订单ID',
   tutor_id      bigint(20)    NOT NULL COMMENT '教员用户ID',
   amount        decimal(10,2) NOT NULL COMMENT '结算金额',
+  platform_fee  decimal(10,2) default 0 COMMENT '平台抽成',
+  net_amount    decimal(10,2) default 0 COMMENT '教员净收入',
   status        char(1)       default '0' COMMENT '状态（0待结算 1已结算）',
   settle_by     varchar(64)   default '' COMMENT '结算人',
   settle_time   datetime,
@@ -220,9 +352,16 @@ CREATE TABLE IF NOT EXISTS tutoring_payment (
   match_id      bigint(20)    NOT NULL COMMENT '订单ID',
   payer_id      bigint(20)    NOT NULL COMMENT '付款用户ID',
   amount        decimal(10,2) NOT NULL COMMENT '付款金额',
+  platform_fee  decimal(10,2) default 0 COMMENT '平台抽成',
+  refund_amount decimal(10,2) default 0 COMMENT '退款金额',
   proof_url     varchar(500)  NOT NULL COMMENT '付款凭证',
+  pay_method    varchar(50)   default '' COMMENT '支付方式',
+  trade_no      varchar(100)  default '' COMMENT '交易号',
+  invoice_no    varchar(100)  default '' COMMENT '发票号',
+  receipt_no    varchar(100)  default '' COMMENT '收据号',
+  reconciled_status char(1)   default '0' COMMENT '对账状态',
   remark        varchar(500)  default '' COMMENT '付款备注',
-  status        char(1)       default '0' COMMENT '状态（0待确认 1已确认 2已驳回）',
+  status        char(1)       default '0' COMMENT '状态（0待确认 1已确认 2已驳回 3已退款）',
   handle_remark varchar(500)  default '' COMMENT '处理意见',
   handle_by     varchar(64)   default '' COMMENT '处理人',
   handle_time   datetime,
@@ -238,10 +377,64 @@ CREATE TABLE IF NOT EXISTS tutoring_followup (
   match_id    bigint(20)   NOT NULL COMMENT '订单ID',
   content     varchar(500) NOT NULL COMMENT '回访内容',
   next_action varchar(500) default '' COMMENT '后续动作',
+  next_time   datetime COMMENT '下次跟进时间',
   status      char(1)      default '0' COMMENT '状态（0待跟进 1已完成）',
   create_by   varchar(64)  default '',
   create_time datetime,
+  update_by   varchar(64)  default '',
+  update_time datetime,
   PRIMARY KEY (followup_id),
   KEY idx_followup_match (match_id, create_time),
   KEY idx_followup_status (status, create_time)
 ) ENGINE=InnoDB COMMENT='订单回访记录';
+
+CREATE TABLE IF NOT EXISTS tutoring_homework (
+  homework_id bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '作业ID',
+  match_id    bigint(20)   NOT NULL COMMENT '订单ID',
+  lesson_id   bigint(20)   default NULL COMMENT '课时ID',
+  title       varchar(100) NOT NULL COMMENT '作业标题',
+  content     varchar(1000) NOT NULL COMMENT '作业内容',
+  submit_text varchar(1000) default '' COMMENT '提交内容',
+  feedback    varchar(1000) default '' COMMENT '教员反馈',
+  status      char(1)      default '0' COMMENT '状态（0待提交 1待反馈 2已反馈）',
+  assign_by   varchar(64)  default '' COMMENT '布置人',
+  submit_by   varchar(64)  default '' COMMENT '提交人',
+  submit_time datetime,
+  check_by    varchar(64)  default '' COMMENT '反馈人',
+  check_time  datetime,
+  create_by   varchar(64)  default '',
+  create_time datetime,
+  PRIMARY KEY (homework_id),
+  KEY idx_homework_match (match_id, status, create_time)
+) ENGINE=InnoDB COMMENT='课后作业';
+
+CREATE TABLE IF NOT EXISTS tutoring_blacklist (
+  blacklist_id bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '黑名单ID',
+  user_id      bigint(20)   NOT NULL COMMENT '用户ID',
+  reason       varchar(500) NOT NULL COMMENT '限制原因',
+  status       char(1)      default '1' COMMENT '状态（1生效 0停用）',
+  handle_by    varchar(64)  default '' COMMENT '停用人',
+  handle_time  datetime,
+  create_by    varchar(64)  default '',
+  create_time  datetime,
+  PRIMARY KEY (blacklist_id),
+  UNIQUE KEY uk_blacklist_user (user_id),
+  KEY idx_blacklist_status (status, create_time)
+) ENGINE=InnoDB COMMENT='家教风控黑名单';
+
+CREATE TABLE IF NOT EXISTS tutoring_finance_ledger (
+  ledger_id  bigint(20)    NOT NULL AUTO_INCREMENT COMMENT '财务流水ID',
+  biz_type   varchar(30)   NOT NULL COMMENT '业务类型',
+  biz_id     bigint(20)    NOT NULL COMMENT '业务ID',
+  match_id   bigint(20)    default NULL COMMENT '订单ID',
+  user_id    bigint(20)    default NULL COMMENT '相关用户ID',
+  amount     decimal(10,2) default 0 COMMENT '金额',
+  direction  varchar(10)   default 'none' COMMENT '方向（in/out/none）',
+  status     varchar(30)   default '' COMMENT '状态',
+  remark     varchar(500)  default '' COMMENT '备注',
+  create_by  varchar(64)   default '',
+  create_time datetime,
+  PRIMARY KEY (ledger_id),
+  KEY idx_finance_ledger_match (match_id, create_time),
+  KEY idx_finance_ledger_biz (biz_type, biz_id)
+) ENGINE=InnoDB COMMENT='财务业务流水';

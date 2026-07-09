@@ -263,6 +263,8 @@
                 @click="openMaterials(scope.row)">资料</el-button>
               <el-button v-if="(scope.row.status === '1' || scope.row.status === '2') && actionVisible('matches', 'messages')" size="mini" type="text"
                 @click="openMessages(scope.row)">沟通</el-button>
+              <el-button v-if="(scope.row.status === '1' || scope.row.status === '2') && actionVisible('matches', 'homeworks')" size="mini" type="text"
+                @click="openHomeworks(scope.row)">作业</el-button>
               <el-button v-if="(scope.row.status === '1' || scope.row.status === '2') && actionVisible('matches', 'payments')" size="mini" type="text"
                 @click="openPayments(scope.row)">付款</el-button>
               <el-button v-if="scope.row.status === '1' && actionVisible('matches', 'trial')" size="mini" type="text"
@@ -277,6 +279,38 @@
                 @click="openComplaint(scope.row)">投诉</el-button>
             </template>
           </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('calendar')" label="排课日历" name="calendar">
+        <el-table :data="calendarRows">
+          <el-table-column label="日期" prop="lessonDate" width="110" />
+          <el-table-column label="开始" prop="startTime" width="90" />
+          <el-table-column label="结束" prop="endTime" width="90" />
+          <el-table-column label="科目" prop="subject" width="100" />
+          <el-table-column label="家长" prop="publisherName" width="110" />
+          <el-table-column label="教员" prop="tutorName" width="110" />
+          <el-table-column label="课时" prop="hours" width="80" />
+          <el-table-column label="确认" width="90">
+            <template slot-scope="scope">{{ scope.row.confirmStatus === '1' ? '已确认' : '待确认' }}</template>
+          </el-table-column>
+          <el-table-column label="内容" prop="content" min-width="180" show-overflow-tooltip />
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('learning')" label="学习档案" name="learning">
+        <el-table :data="learningRows">
+          <el-table-column label="日期" prop="lessonDate" width="110" />
+          <el-table-column label="科目" prop="subject" width="100" />
+          <el-table-column label="家长" prop="publisherName" width="110" />
+          <el-table-column label="教员" prop="tutorName" width="110" />
+          <el-table-column label="出勤" width="90">
+            <template slot-scope="scope">{{ attendanceStatus(scope.row.attendanceStatus) }}</template>
+          </el-table-column>
+          <el-table-column label="课后报告" prop="studentPerformance" min-width="180" show-overflow-tooltip />
+          <el-table-column label="作业" prop="homework" min-width="160" show-overflow-tooltip />
+          <el-table-column label="阶段反馈" prop="phaseFeedback" min-width="180" show-overflow-tooltip />
+          <el-table-column label="下节计划" prop="nextPlan" min-width="160" show-overflow-tooltip />
         </el-table>
       </el-tab-pane>
 
@@ -307,6 +341,11 @@
             <template slot-scope="scope"><el-tag :type="scope.row.readStatus === '1' ? 'info' : 'danger'" size="mini">{{ scope.row.readStatus === '1' ? '已读' : '未读' }}</el-tag></template>
           </el-table-column>
           <el-table-column label="标题" prop="title" width="180" />
+          <el-table-column label="渠道" prop="channel" width="90" />
+          <el-table-column label="模板" prop="templateCode" width="130" />
+          <el-table-column label="发送" width="90">
+            <template slot-scope="scope">{{ scope.row.sendStatus === '1' ? '已发送' : '待发送' }}</template>
+          </el-table-column>
           <el-table-column label="内容" prop="content" />
           <el-table-column label="时间" prop="createTime" width="170" />
           <el-table-column label="操作" width="80">
@@ -320,7 +359,9 @@
           <el-table-column label="订单" prop="matchId" width="80" />
           <el-table-column label="科目" prop="subject" width="100" />
           <el-table-column label="课时" prop="lessonId" width="90" />
-          <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="毛额" width="90"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="抽成" width="90"><template slot-scope="scope">￥{{ scope.row.platformFee }}</template></el-table-column>
+          <el-table-column label="净额" width="90"><template slot-scope="scope">￥{{ scope.row.netAmount || scope.row.amount }}</template></el-table-column>
           <el-table-column label="状态" width="90"><template slot-scope="scope">{{ settlementStatus(scope.row.status) }}</template></el-table-column>
           <el-table-column label="结算人" prop="settleBy" width="100" />
           <el-table-column label="结算时间" prop="settleTime" width="170" />
@@ -395,6 +436,112 @@
               <el-button v-if="scope.row.status === '0' && actionVisible('invitations', 'respond')" v-hasPermi="['tutoring:match:apply']" type="text" class="text-danger" @click="respondInvite(scope.row, false)">拒绝</el-button>
             </template>
           </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessCrm')" label="招生 CRM" name="businessCrm">
+        <el-row :gutter="16">
+          <el-col v-for="item in crmCards" :key="item.label" :xs="12" :sm="8" :lg="4">
+            <div class="stat-card">
+              <div class="stat-value">{{ item.value }}</div>
+              <div class="stat-label">{{ item.label }}</div>
+            </div>
+          </el-col>
+        </el-row>
+        <el-table :data="crmDashboard.sourceStats || []" size="small">
+          <el-table-column label="来源" prop="sourceChannel" />
+          <el-table-column label="线索数" prop="leadCount" width="120" />
+          <el-table-column label="成单数" prop="convertedCount" width="120" />
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessRisk')" label="风控质检" name="businessRisk">
+        <el-table :data="riskAlerts">
+          <el-table-column label="级别" width="90">
+            <template slot-scope="scope"><el-tag :type="riskSeverity(scope.row.severity)" size="mini">{{ scope.row.severity }}</el-tag></template>
+          </el-table-column>
+          <el-table-column label="类型" prop="title" width="120" />
+          <el-table-column label="内容" prop="content" min-width="260" show-overflow-tooltip />
+          <el-table-column label="时间" prop="createTime" width="170" />
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessReports')" label="运营报表" name="businessReports">
+        <el-row :gutter="16">
+          <el-col v-for="item in reportCards" :key="item.label" :xs="12" :sm="8" :lg="4">
+            <div class="stat-card">
+              <div class="stat-value">{{ item.value }}</div>
+              <div class="stat-label">{{ item.label }}</div>
+            </div>
+          </el-col>
+        </el-row>
+        <el-table :data="operationsReport.subjectHeat || []" size="small">
+          <el-table-column label="科目" prop="subject" />
+          <el-table-column label="需求数" prop="requestCount" width="110" />
+          <el-table-column label="订单数" prop="matchCount" width="110" />
+          <el-table-column label="GMV" width="120"><template slot-scope="scope">¥{{ scope.row.gmv || 0 }}</template></el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessReminders')" label="提醒中心" name="businessReminders">
+        <div class="table-toolbar">
+          <el-button type="primary" icon="el-icon-bell" @click="generateReminderRows">生成提醒</el-button>
+        </div>
+        <el-row :gutter="16">
+          <el-col v-for="item in reminderCards" :key="item.label" :xs="12" :sm="8">
+            <div class="stat-card">
+              <div class="stat-value">{{ item.value }}</div>
+              <div class="stat-label">{{ item.label }}</div>
+            </div>
+          </el-col>
+        </el-row>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessBlacklists')" label="黑名单" name="businessBlacklists">
+        <el-form :inline="true" :model="blacklistQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="用户ID"><el-input-number v-model="blacklistQuery.userId" :min="1" :controls="false" /></el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="blacklistQuery.status" clearable placeholder="全部" class="status-select">
+              <el-option label="生效" value="1" />
+              <el-option label="停用" value="0" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="loadCurrentTab">查询</el-button>
+            <el-button icon="el-icon-plus" @click="submitBlacklist">加入黑名单</el-button>
+          </el-form-item>
+        </el-form>
+        <el-table :data="adminBlacklists">
+          <el-table-column label="用户ID" prop="userId" width="90" />
+          <el-table-column label="昵称" prop="userName" width="120" />
+          <el-table-column label="原因" prop="reason" min-width="240" show-overflow-tooltip />
+          <el-table-column label="状态" width="90"><template slot-scope="scope">{{ scope.row.status === '1' ? '生效' : '停用' }}</template></el-table-column>
+          <el-table-column label="创建人" prop="createBy" width="100" />
+          <el-table-column label="时间" prop="createTime" width="170" />
+          <el-table-column label="操作" width="90">
+            <template slot-scope="scope"><el-button v-if="scope.row.status === '1'" type="text" @click="disableBlacklistRow(scope.row)">停用</el-button></template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="tabVisible('businessLedgers')" label="财务流水" name="businessLedgers">
+        <el-form :inline="true" :model="ledgerQuery" size="small" class="filter-form" @submit.native.prevent>
+          <el-form-item label="业务"><el-input v-model="ledgerQuery.bizType" clearable placeholder="payment/refund/settlement" /></el-form-item>
+          <el-form-item label="订单"><el-input-number v-model="ledgerQuery.matchId" :min="1" :controls="false" /></el-form-item>
+          <el-form-item label="状态"><el-input v-model="ledgerQuery.status" clearable placeholder="confirmed/settled" /></el-form-item>
+          <el-form-item><el-button type="primary" icon="el-icon-search" @click="loadCurrentTab">查询</el-button></el-form-item>
+        </el-form>
+        <el-table :data="financeLedgers">
+          <el-table-column label="流水" prop="ledgerId" width="80" />
+          <el-table-column label="业务" prop="bizType" width="100" />
+          <el-table-column label="订单" prop="matchId" width="80" />
+          <el-table-column label="科目" prop="subject" width="90" />
+          <el-table-column label="用户" prop="userName" width="110" />
+          <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount || 0 }}</template></el-table-column>
+          <el-table-column label="方向" prop="direction" width="80" />
+          <el-table-column label="状态" prop="status" width="110" />
+          <el-table-column label="备注" prop="remark" min-width="180" show-overflow-tooltip />
+          <el-table-column label="时间" prop="createTime" width="170" />
         </el-table>
       </el-tab-pane>
 
@@ -473,6 +620,7 @@
       <el-tab-pane v-if="tabVisible('businessRequests')" label="业务监管-需求" name="businessRequests">
         <el-form :inline="true" :model="adminRequestQuery" size="small" class="filter-form" @submit.native.prevent>
           <el-form-item label="科目"><el-input v-model="adminRequestQuery.subject" clearable placeholder="如：数学" /></el-form-item>
+          <el-form-item label="来源"><el-input v-model="adminRequestQuery.sourceChannel" clearable placeholder="如：社群" /></el-form-item>
           <el-form-item label="状态">
             <el-select v-model="adminRequestQuery.status" clearable placeholder="全部" class="status-select">
               <el-option label="招募中" value="0" />
@@ -492,6 +640,7 @@
           <el-table-column label="科目" prop="subject" width="90" />
           <el-table-column label="年级" prop="learnerGrade" width="90" />
           <el-table-column label="区域" prop="area" />
+          <el-table-column label="来源" prop="sourceChannel" width="100" />
           <el-table-column label="预算/小时" width="110"><template slot-scope="scope">￥{{ scope.row.hourlyBudget }}</template></el-table-column>
           <el-table-column label="状态" width="90"><template slot-scope="scope">{{ requestStatus(scope.row.status) }}</template></el-table-column>
           <el-table-column label="发布时间" prop="createTime" width="170" />
@@ -576,10 +725,14 @@
           <el-table-column label="家长" prop="publisherName" width="100" />
           <el-table-column label="教员" prop="tutorName" width="100" />
           <el-table-column label="日期" prop="lessonDate" width="110" />
+          <el-table-column label="开始" prop="startTime" width="80" />
+          <el-table-column label="结束" prop="endTime" width="80" />
           <el-table-column label="课时" prop="hours" width="80" />
           <el-table-column label="课时费" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="出勤" width="80"><template slot-scope="scope">{{ attendanceStatus(scope.row.attendanceStatus) }}</template></el-table-column>
           <el-table-column label="确认" width="90"><template slot-scope="scope">{{ scope.row.confirmStatus === '1' ? '已确认' : '待确认' }}</template></el-table-column>
           <el-table-column label="内容" prop="content" min-width="180" show-overflow-tooltip />
+          <el-table-column label="阶段反馈" prop="phaseFeedback" min-width="160" show-overflow-tooltip />
           <el-table-column label="记录时间" prop="createTime" width="170" />
         </el-table>
       </el-tab-pane>
@@ -596,15 +749,19 @@
           <el-form-item>
             <el-button type="primary" icon="el-icon-search" @click="searchAdminSettlements">查询</el-button>
             <el-button icon="el-icon-refresh" @click="resetAdminSettlements">重置</el-button>
+            <el-button icon="el-icon-check" @click="batchSettleSelected">批量结算</el-button>
           </el-form-item>
         </el-form>
-        <el-table :data="adminSettlements">
+        <el-table :data="adminSettlements" @selection-change="selectedSettlements = $event">
+          <el-table-column type="selection" width="45" />
           <el-table-column label="订单" prop="matchId" width="80" />
           <el-table-column label="科目" prop="subject" width="90" />
           <el-table-column label="家长" prop="publisherName" width="100" />
           <el-table-column label="教员" prop="tutorName" width="100" />
           <el-table-column label="课时" prop="lessonId" width="90" />
-          <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="毛额" width="90"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="抽成" width="90"><template slot-scope="scope">￥{{ scope.row.platformFee }}</template></el-table-column>
+          <el-table-column label="净额" width="90"><template slot-scope="scope">￥{{ scope.row.netAmount || scope.row.amount }}</template></el-table-column>
           <el-table-column label="状态" width="90"><template slot-scope="scope">{{ settlementStatus(scope.row.status) }}</template></el-table-column>
           <el-table-column label="生成时间" prop="createTime" width="170" />
           <el-table-column label="操作" width="90">
@@ -683,6 +840,7 @@
           </el-form-item>
           <el-form-item label="内容"><el-input v-model="followupForm.content" clearable placeholder="回访内容" /></el-form-item>
           <el-form-item label="后续"><el-input v-model="followupForm.nextAction" clearable placeholder="后续动作" /></el-form-item>
+          <el-form-item label="提醒"><el-date-picker v-model="followupForm.nextTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="下次跟进" /></el-form-item>
           <el-form-item>
             <el-button type="primary" icon="el-icon-plus" @click="submitFollowup">新增回访</el-button>
             <el-button icon="el-icon-search" @click="loadCurrentTab">查询</el-button>
@@ -695,9 +853,15 @@
           <el-table-column label="教员" prop="tutorName" width="100" />
           <el-table-column label="回访内容" prop="content" min-width="220" show-overflow-tooltip />
           <el-table-column label="后续动作" prop="nextAction" min-width="180" show-overflow-tooltip />
+          <el-table-column label="提醒时间" prop="nextTime" width="170" />
           <el-table-column label="状态" width="90"><template slot-scope="scope">{{ followupStatus(scope.row.status) }}</template></el-table-column>
           <el-table-column label="记录人" prop="createBy" width="100" />
           <el-table-column label="时间" prop="createTime" width="170" />
+          <el-table-column label="操作" width="90">
+            <template slot-scope="scope">
+              <el-button v-if="scope.row.status === '0'" type="text" @click="completeFollowupRow(scope.row)">完成</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -708,6 +872,7 @@
               <el-option label="待确认" value="0" />
               <el-option label="已确认" value="1" />
               <el-option label="已驳回" value="2" />
+              <el-option label="已退款" value="3" />
             </el-select>
           </el-form-item>
           <el-form-item>
@@ -720,17 +885,27 @@
           <el-table-column label="科目" prop="subject" width="90" />
           <el-table-column label="家长" prop="payerName" width="100" />
           <el-table-column label="教员" prop="tutorName" width="100" />
-          <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="金额" width="90"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+          <el-table-column label="抽成" width="90"><template slot-scope="scope">￥{{ scope.row.platformFee || 0 }}</template></el-table-column>
+          <el-table-column label="退款" width="90"><template slot-scope="scope">￥{{ scope.row.refundAmount || 0 }}</template></el-table-column>
+          <el-table-column label="方式" prop="payMethod" width="90" />
+          <el-table-column label="交易号" prop="tradeNo" min-width="140" show-overflow-tooltip />
+          <el-table-column label="发票" prop="invoiceNo" min-width="120" show-overflow-tooltip />
+          <el-table-column label="收据" prop="receiptNo" min-width="120" show-overflow-tooltip />
           <el-table-column label="凭证" min-width="180" show-overflow-tooltip>
             <template slot-scope="scope"><a v-if="scope.row.proofUrl" :href="scope.row.proofUrl" target="_blank">查看凭证</a></template>
           </el-table-column>
           <el-table-column label="状态" width="90"><template slot-scope="scope">{{ paymentStatus(scope.row.status) }}</template></el-table-column>
+          <el-table-column label="对账" width="90"><template slot-scope="scope">{{ scope.row.reconciledStatus === '1' ? '已对账' : '未对账' }}</template></el-table-column>
           <el-table-column label="处理意见" prop="handleRemark" min-width="180" show-overflow-tooltip />
           <el-table-column label="提交时间" prop="createTime" width="170" />
-          <el-table-column label="操作" width="130" align="center">
+          <el-table-column label="操作" width="190" align="center">
             <template slot-scope="scope">
               <el-button v-if="scope.row.status === '0'" type="text" @click="handlePaymentRow(scope.row, '1')">确认</el-button>
               <el-button v-if="scope.row.status === '0'" type="text" class="text-danger" @click="handlePaymentRow(scope.row, '2')">驳回</el-button>
+              <el-button v-if="scope.row.status === '1'" type="text" class="text-danger" @click="refundPaymentRow(scope.row)">退款</el-button>
+              <el-button v-if="scope.row.status === '1' || scope.row.status === '3'" type="text" @click="reconcilePaymentRow(scope.row)">对账</el-button>
+              <el-button v-if="scope.row.status === '1' || scope.row.status === '3'" type="text" @click="issueInvoiceRow(scope.row)">开票</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -814,6 +989,7 @@
           <el-col :span="12"><el-form-item label="辅导科目" prop="subject"><el-input v-model="requestForm.subject" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="授课区域" prop="area"><el-input v-model="requestForm.area" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="课时预算" prop="hourlyBudget"><el-input-number v-model="requestForm.hourlyBudget" :min="1" :precision="2" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="来源"><el-input v-model="requestForm.sourceChannel" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="期望时间" prop="scheduleText"><el-input v-model="requestForm.scheduleText" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="补充要求" prop="requirementText"><el-input v-model="requestForm.requirementText" type="textarea" :rows="3" /></el-form-item></el-col>
         </el-row>
@@ -840,10 +1016,14 @@
     <el-dialog title="课程记录" :visible.sync="lessonDialog" width="720px" append-to-body>
       <el-table :data="lessons" size="small">
         <el-table-column label="上课日期" prop="lessonDate" width="110" />
+        <el-table-column label="开始" prop="startTime" width="80" />
+        <el-table-column label="结束" prop="endTime" width="80" />
         <el-table-column label="课时" prop="hours" width="80" />
         <el-table-column label="授课内容" prop="content" />
+        <el-table-column label="出勤" width="80"><template slot-scope="scope">{{ attendanceStatus(scope.row.attendanceStatus) }}</template></el-table-column>
         <el-table-column label="课堂表现" prop="studentPerformance" min-width="120" show-overflow-tooltip />
         <el-table-column label="课后作业" prop="homework" min-width="120" show-overflow-tooltip />
+        <el-table-column label="阶段反馈" prop="phaseFeedback" min-width="120" show-overflow-tooltip />
         <el-table-column label="下节计划" prop="nextPlan" min-width="120" show-overflow-tooltip />
         <el-table-column label="课时费" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
         <el-table-column label="确认" width="90">
@@ -858,10 +1038,20 @@
       <el-divider v-if="currentMatch.status === '1' && actionVisible('matches', 'complete')" />
       <el-form v-if="currentMatch.status === '1' && actionVisible('matches', 'complete')" :model="lessonForm" label-width="90px">
         <el-form-item label="上课日期"><el-date-picker v-model="lessonForm.lessonDate" type="date" value-format="yyyy-MM-dd" placeholder="选择日期" /></el-form-item>
+        <el-form-item label="开始时间"><el-time-picker v-model="lessonForm.startTime" value-format="HH:mm" format="HH:mm" placeholder="开始时间" /></el-form-item>
+        <el-form-item label="结束时间"><el-time-picker v-model="lessonForm.endTime" value-format="HH:mm" format="HH:mm" placeholder="结束时间" /></el-form-item>
         <el-form-item label="课时数"><el-input-number v-model="lessonForm.hours" :min="0.5" :step="0.5" :precision="1" /></el-form-item>
         <el-form-item label="授课内容"><el-input v-model="lessonForm.content" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+        <el-form-item label="出勤">
+          <el-select v-model="lessonForm.attendanceStatus" class="status-select">
+            <el-option label="到课" value="1" />
+            <el-option label="请假" value="2" />
+            <el-option label="缺勤" value="3" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="课堂表现"><el-input v-model="lessonForm.studentPerformance" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
         <el-form-item label="课后作业"><el-input v-model="lessonForm.homework" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
+        <el-form-item label="阶段反馈"><el-input v-model="lessonForm.phaseFeedback" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
         <el-form-item label="下节计划"><el-input v-model="lessonForm.nextPlan" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
       </el-form>
       <div slot="footer">
@@ -955,6 +1145,10 @@
     <el-dialog title="订单付款" :visible.sync="paymentDialog" width="680px" append-to-body>
       <el-table :data="paymentRows" size="small">
         <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
+        <el-table-column label="方式" prop="payMethod" width="90" />
+        <el-table-column label="交易号" prop="tradeNo" min-width="140" show-overflow-tooltip />
+        <el-table-column label="收据" prop="receiptNo" min-width="120" show-overflow-tooltip />
+        <el-table-column label="退款" width="90"><template slot-scope="scope">￥{{ scope.row.refundAmount || 0 }}</template></el-table-column>
         <el-table-column label="凭证" min-width="180" show-overflow-tooltip>
           <template slot-scope="scope"><a v-if="scope.row.proofUrl" :href="scope.row.proofUrl" target="_blank">查看凭证</a></template>
         </el-table-column>
@@ -965,6 +1159,8 @@
       <el-divider />
       <el-form :model="paymentForm" label-width="90px">
         <el-form-item label="付款金额"><el-input-number v-model="paymentForm.amount" :min="1" :precision="2" :controls="false" /></el-form-item>
+        <el-form-item label="支付方式"><el-input v-model="paymentForm.payMethod" placeholder="如：微信/支付宝/转账" /></el-form-item>
+        <el-form-item label="交易号"><el-input v-model="paymentForm.tradeNo" placeholder="可选" /></el-form-item>
         <el-form-item label="付款凭证"><file-upload v-model="paymentForm.proofUrl" :limit="1" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="paymentForm.remark" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
       </el-form>
@@ -972,6 +1168,31 @@
         <el-button @click="paymentDialog = false">关闭</el-button>
         <el-button @click="submitMockPayment">模拟支付</el-button>
         <el-button type="primary" @click="submitPayment">提交凭证</el-button>
+      </div>
+    </el-dialog>
+
+    <el-dialog title="课后作业" :visible.sync="homeworkDialog" width="760px" append-to-body>
+      <el-table :data="homeworkRows" size="small">
+        <el-table-column label="标题" prop="title" width="140" />
+        <el-table-column label="内容" prop="content" min-width="180" show-overflow-tooltip />
+        <el-table-column label="提交" prop="submitText" min-width="160" show-overflow-tooltip />
+        <el-table-column label="反馈" prop="feedback" min-width="160" show-overflow-tooltip />
+        <el-table-column label="状态" width="90"><template slot-scope="scope">{{ homeworkStatus(scope.row.status) }}</template></el-table-column>
+        <el-table-column label="操作" width="120">
+          <template slot-scope="scope">
+            <el-button v-if="workbenchRole === 'client' && scope.row.status === '0'" type="text" @click="submitHomeworkRow(scope.row)">提交</el-button>
+            <el-button v-if="workbenchRole === 'tutor' && scope.row.status === '1'" type="text" @click="feedbackHomeworkRow(scope.row)">反馈</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-divider v-if="workbenchRole === 'tutor'" />
+      <el-form v-if="workbenchRole === 'tutor'" :model="homeworkForm" label-width="90px">
+        <el-form-item label="标题"><el-input v-model="homeworkForm.title" /></el-form-item>
+        <el-form-item label="内容"><el-input v-model="homeworkForm.content" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="homeworkDialog = false">关闭</el-button>
+        <el-button v-if="workbenchRole === 'tutor'" type="primary" @click="submitHomeworkForm">布置作业</el-button>
       </div>
     </el-dialog>
 
@@ -1019,9 +1240,11 @@ import {
   cancelRequest, listMyMatches, listAdminClients, listAdminTutors, listAdminMatches,
   listAdminInvitations, listAdminLessons, listAdminSettlements, listAdminTickets, changeAdminUserStatus, closeAdminMatch,
   applyRequest, withdrawMatch, cancelMatch, rescheduleMatch, scheduleTrial, completeTrial, acceptMatch, completeMatch, reviewMatch, getDashboard, getDashboardTodos,
+  listCalendarLessons, listLearningRecords, getCrmDashboard, listRiskAlerts, getOperationsReport, generateReminders,
   listLessons, addLesson, confirmLesson, listMaterials, addMaterial, listMessages, addMessage, listPayments, addPayment, mockPayment,
+  listHomeworks, addHomework, submitHomework, feedbackHomework,
   listNotifications, readNotification, readAllNotifications, getUnreadNotificationCount, submitComplaint,
-  listMySettlements, settleSettlement, listAdminPayments, handlePayment, listAdminFollowups, addFollowup, listTickets, submitTicket, handleTicket,
+  listMySettlements, settleSettlement, batchSettleSettlements, listAdminPayments, handlePayment, refundPayment, reconcilePayment, issueInvoice, listFinanceLedgers, listAdminBlacklists, saveBlacklist, disableBlacklist, listAdminFollowups, addFollowup, completeFollowup, listTickets, submitTicket, handleTicket,
   listMyComplaints, listComplaints, handleComplaint, listRecommendedRequests,
   listFavoriteTutors, favoriteTutor as favoriteTutorApi, unfavoriteTutor, inviteTutor,
   listInvitations, acceptInvitation, rejectInvitation
@@ -1030,16 +1253,18 @@ import { getToken } from '@/utils/auth'
 const { resolveWorkbenchRole, getWorkbenchConfig } = require('./roleConfig.cjs')
 
 const emptyProfile = () => ({ university: '', major: '', collegeYear: '', subjects: '', hourlyRate: 60, availabilityText: '', introduction: '', studentCardUrl: '', qualificationUrl: '' })
-const emptyRequest = () => ({ learnerGrade: '', subject: '', area: '', scheduleText: '', hourlyBudget: 80, requirementText: '' })
+const emptyRequest = () => ({ learnerGrade: '', subject: '', area: '', scheduleText: '', hourlyBudget: 80, requirementText: '', sourceChannel: '平台发布' })
 const emptyInvite = () => ({ tutorId: null, learnerGrade: '', subject: '', area: '', scheduleText: '', offeredRate: 80, message: '' })
 const emptyLearner = () => ({ learnerId: null, learnerName: '', grade: '', school: '', weakSubjects: '', targetScore: '', availableTime: '', remark: '' })
 const emptyAvailability = () => ({ weekDay: '1', startTime: '18:00', endTime: '20:00', remark: '' })
 const emptyTicket = () => ({ title: '', content: '' })
 const emptyAnnouncement = () => ({ announcementId: null, title: '', content: '', status: '1' })
 const emptyMaterial = () => ({ title: '', fileUrl: '', remark: '' })
-const emptyFollowup = () => ({ matchId: null, content: '', nextAction: '', status: '0' })
+const emptyFollowup = () => ({ matchId: null, content: '', nextAction: '', nextTime: '', status: '0' })
 const emptyMessage = () => ({ content: '' })
-const emptyPayment = () => ({ amount: 0, proofUrl: '', remark: '' })
+const emptyPayment = () => ({ amount: 0, proofUrl: '', payMethod: 'voucher', tradeNo: '', remark: '' })
+const emptyHomework = () => ({ lessonId: null, title: '', content: '', submitText: '', feedback: '' })
+const emptyBlacklist = () => ({ userId: null, reason: '' })
 const countRows = response => response && response.total != null
   ? response.total
   : ((response && (response.rows || response.data)) || []).length
@@ -1071,8 +1296,16 @@ const NAV_META = {
 Object.assign(NAV_META, {
   businessSettlements: { label: '结算管理', icon: 'el-icon-money', desc: '核对已确认课时生成的待结算课时费。' },
   businessTickets: { label: '工单处理', icon: 'el-icon-service', desc: '处理家长和教员提交的平台问题。' },
+  businessCrm: { label: '招生 CRM', icon: 'el-icon-connection', desc: '查看线索、试听、成单和来源转化。' },
+  businessRisk: { label: '风控质检', icon: 'el-icon-warning-outline', desc: '跟踪投诉 SLA、异常报价、取消和教员低分风险。' },
+  businessReports: { label: '运营报表', icon: 'el-icon-data-analysis', desc: '查看转化、复购、GMV、抽成和服务效率。' },
+  businessReminders: { label: '提醒中心', icon: 'el-icon-bell', desc: '生成课前、付款和工单提醒。' },
+  businessBlacklists: { label: '黑名单', icon: 'el-icon-remove-outline', desc: '限制异常家长或教员继续发布、申请和预约。' },
+  businessLedgers: { label: '财务流水', icon: 'el-icon-notebook-2', desc: '追踪付款、退款、对账、开票和结算动作。' },
   availability: { label: '授课日历', icon: 'el-icon-time', desc: '维护可预约的星期和时间段。' },
   settlements: { label: '收入结算', icon: 'el-icon-money', desc: '查看已确认课时对应的结算状态。' },
+  calendar: { label: '排课日历', icon: 'el-icon-date', desc: '查看即将上课的日期、时间和确认状态。' },
+  learning: { label: '学习档案', icon: 'el-icon-notebook-1', desc: '查看课后报告、作业、出勤和阶段反馈。' },
   tickets: { label: '客服工单', icon: 'el-icon-service', desc: '提交和跟踪平台服务问题。' },
   learners: { label: '学员档案', icon: 'el-icon-notebook-2', desc: '维护学员年级、薄弱科目、目标和可上课时间。' },
   announcements: { label: '平台公告', icon: 'el-icon-date', desc: '查看平台通知、服务规则和运营提醒。' },
@@ -1087,20 +1320,22 @@ export default {
     return {
       activeTab: '', loading: false,
       tutors: [], openRequests: [], recommendedRequests: [], myRequests: [], matches: [], pendingProfiles: [],
-      notifications: [], complaints: [], favoriteTutors: [], invitations: [], lessons: [],
+      notifications: [], complaints: [], favoriteTutors: [], invitations: [], lessons: [], calendarRows: [], learningRows: [],
       learnerRows: [], availabilityRows: [], settlementRows: [], ticketRows: [],
-      announcementRows: [], materialRows: [], followupRows: [], messageRows: [], paymentRows: [],
+      announcementRows: [], materialRows: [], followupRows: [], messageRows: [], paymentRows: [], homeworkRows: [],
       adminClients: [], adminTutors: [], adminRequests: [], adminMatches: [], adminInvitations: [], adminLessons: [],
-      adminSettlements: [], adminTickets: [], adminAnnouncements: [], adminPayments: [],
+      adminSettlements: [], selectedSettlements: [], adminTickets: [], adminAnnouncements: [], adminPayments: [],
+      adminBlacklists: [], financeLedgers: [],
+      crmDashboard: { sourceStats: [] }, riskAlerts: [], operationsReport: { subjectHeat: [] }, reminderResult: {},
       notificationQuery: { readStatus: '', title: '' }, unreadNotifications: 0,
       profileDialog: false, requestDialog: false, applyDialog: false, reviewDialog: false, tutorDialog: false,
       lessonDialog: false, complaintDialog: false, inviteDialog: false, learnerDialog: false, ticketDialog: false, trialDialog: false,
-      materialDialog: false, announcementDialog: false, messageDialog: false, paymentDialog: false,
+      materialDialog: false, announcementDialog: false, messageDialog: false, paymentDialog: false, homeworkDialog: false,
       tutorQuery: { subjects: '', university: '' },
       queryForm: { subject: '', learnerGrade: '', area: '', minBudget: undefined, maxBudget: undefined },
       adminClientQuery: { userName: '', status: '' },
       adminTutorQuery: { userName: '', university: '', subjects: '', verifyStatus: '' },
-      adminRequestQuery: { subject: '', status: '' },
+      adminRequestQuery: { subject: '', status: '', sourceChannel: '' },
       adminMatchQuery: { subject: '', status: '' },
       adminInvitationQuery: { subject: '', status: '' },
       adminLessonQuery: { subject: '' },
@@ -1108,6 +1343,8 @@ export default {
       adminTicketQuery: { title: '', status: '' },
       adminAnnouncementQuery: { title: '', status: '' },
       adminPaymentQuery: { status: '' },
+      blacklistQuery: { userId: undefined, status: '' },
+      ledgerQuery: { bizType: '', matchId: undefined, status: '' },
       chatSocket: null, chatConnected: false,
       tutorDetail: {}, dashboard: { topSubjects: [] }, adminTodos: {},
       overview: { tutors: 0, openRequests: 0, recommended: 0, requests: 0, matches: 0, invitations: 0, unread: 0 },
@@ -1115,7 +1352,7 @@ export default {
       profileForm: emptyProfile(), requestForm: emptyRequest(),
       applyForm: { requestId: null, quotedRate: 60, applicationText: '' },
       reviewForm: { matchId: null, rating: 5, reviewText: '' },
-      lessonForm: { lessonDate: '', hours: 1, content: '', studentPerformance: '', homework: '', nextPlan: '' },
+      lessonForm: { lessonDate: '', startTime: '18:00', endTime: '20:00', hours: 1, content: '', studentPerformance: '', homework: '', nextPlan: '', attendanceStatus: '1', phaseFeedback: '' },
       learnerForm: emptyLearner(),
       availabilityForm: emptyAvailability(),
       ticketForm: emptyTicket(),
@@ -1124,6 +1361,8 @@ export default {
       followupForm: emptyFollowup(),
       messageForm: emptyMessage(),
       paymentForm: emptyPayment(),
+      homeworkForm: emptyHomework(),
+      blacklistForm: emptyBlacklist(),
       trialForm: { matchId: null, trialTime: '', trialRemark: '' },
       complaintForm: { matchId: null, reason: '' },
       inviteForm: emptyInvite(),
@@ -1200,7 +1439,7 @@ export default {
       ]
     },
     adminTodoTotal() {
-      return ['pendingProfiles', 'pendingComplaints', 'unconfirmedLessons', 'staleMatches', 'pendingSettlements', 'pendingTickets']
+      return ['pendingProfiles', 'pendingComplaints', 'unconfirmedLessons', 'staleMatches', 'pendingSettlements', 'pendingTickets', 'dueFollowups']
         .reduce((sum, key) => sum + Number(this.adminTodos[key] || 0), 0)
     },
     dashboardCards() {
@@ -1213,12 +1452,39 @@ export default {
         { label: '平均评分', value: this.dashboard.averageRating || 0 }
       ]
     },
+    crmCards() {
+      return [
+        { label: '线索数', value: this.crmDashboard.leadCount || 0 },
+        { label: '开放线索', value: this.crmDashboard.openLeads || 0 },
+        { label: '申请数', value: this.crmDashboard.applyCount || 0 },
+        { label: '试听数', value: this.crmDashboard.trialCount || 0 },
+        { label: '成单数', value: this.crmDashboard.acceptedCount || 0 },
+        { label: '转化率', value: `${this.crmDashboard.conversionRate || 0}%` }
+      ]
+    },
+    reportCards() {
+      return [
+        { label: '线索数', value: this.operationsReport.leadCount || 0 },
+        { label: '成单数', value: this.operationsReport.dealCount || 0 },
+        { label: '复购客户', value: this.operationsReport.repeatClients || 0 },
+        { label: 'GMV', value: `¥${this.operationsReport.gmv || 0}` },
+        { label: '抽成收入', value: `¥${this.operationsReport.platformRevenue || 0}` },
+        { label: '客诉率', value: `${this.operationsReport.complaintRate || 0}%` }
+      ]
+    },
+    reminderCards() {
+      return [
+        { label: '课前提醒', value: this.reminderResult.lessonReminders || 0 },
+        { label: '付款提醒', value: this.reminderResult.paymentReminders || 0 },
+        { label: '工单提醒', value: this.reminderResult.ticketReminders || 0 }
+      ]
+    },
     adminTodoCards() {
       return [
         { label: '待审核教员', value: this.adminTodos.pendingProfiles || 0 },
         { label: '待处理投诉', value: this.adminTodos.pendingComplaints || 0 },
         { label: '待确认课时', value: this.adminTodos.unconfirmedLessons || 0 },
-        { label: '久未完成订单', value: this.adminTodos.staleMatches || 0 }
+        { label: '待跟进回访', value: this.adminTodos.dueFollowups || 0 }
       ]
     },
     profileCompleteness() {
@@ -1256,6 +1522,8 @@ export default {
       if (name === 'businessSettlements') return this.adminTodos.pendingSettlements || 0
       if (name === 'businessTickets') return this.adminTodos.pendingTickets || 0
       if (name === 'businessMatches') return this.adminTodos.staleMatches || 0
+      if (name === 'businessFollowups') return this.adminTodos.dueFollowups || 0
+      if (name === 'businessRisk') return this.riskAlerts.length || 0
       return 0
     },
     switchTab(name) {
@@ -1362,6 +1630,8 @@ export default {
         recommended: () => listRecommendedRequests().then(r => { this.recommendedRequests = r.data || [] }),
         requests: () => listMyRequests().then(r => { this.myRequests = r.rows || [] }),
         matches: () => listMyMatches().then(r => { this.matches = r.rows || [] }),
+        calendar: () => listCalendarLessons().then(r => { this.calendarRows = r.data || [] }),
+        learning: () => listLearningRecords().then(r => { this.learningRows = r.data || [] }),
         notifications: () => this.loadNotifications(),
         invitations: () => listInvitations().then(r => { this.invitations = r.data || [] }),
         announcements: () => listAnnouncements().then(r => { this.announcementRows = r.data || [] }),
@@ -1371,6 +1641,12 @@ export default {
         favorites: () => listFavoriteTutors().then(r => { this.favoriteTutors = r.data || [] }),
         verify: () => listPendingProfiles().then(r => { this.pendingProfiles = r.rows || [] }),
         dashboard: () => getDashboard().then(r => { this.dashboard = r.data || { topSubjects: [] } }).then(() => this.loadAdminTodos()),
+        businessCrm: () => getCrmDashboard().then(r => { this.crmDashboard = r.data || { sourceStats: [] } }),
+        businessRisk: () => listRiskAlerts().then(r => { this.riskAlerts = r.data || [] }),
+        businessReports: () => getOperationsReport().then(r => { this.operationsReport = r.data || { subjectHeat: [] } }),
+        businessReminders: () => Promise.resolve(),
+        businessBlacklists: () => listAdminBlacklists(this.blacklistQuery).then(r => { this.adminBlacklists = r.rows || [] }),
+        businessLedgers: () => listFinanceLedgers(this.ledgerQuery).then(r => { this.financeLedgers = r.rows || [] }),
         businessClients: () => listAdminClients(this.adminClientQuery).then(r => { this.adminClients = r.rows || [] }),
         businessTutors: () => listAdminTutors(this.adminTutorQuery).then(r => { this.adminTutors = r.rows || [] }),
         businessRequests: () => listAdminRequests(this.adminRequestQuery).then(r => { this.adminRequests = r.rows || [] }),
@@ -1445,7 +1721,7 @@ export default {
       this.loadCurrentTab()
     },
     resetAdminRequests() {
-      this.adminRequestQuery = { subject: '', status: '' }
+      this.adminRequestQuery = { subject: '', status: '', sourceChannel: '' }
       this.searchAdminRequests()
     },
     searchAdminMatches() {
@@ -1522,8 +1798,17 @@ export default {
     followupStatus(status) {
       return { '0': '待跟进', '1': '已完成' }[status] || status
     },
+    attendanceStatus(status) {
+      return { '0': '待确认', '1': '到课', '2': '请假', '3': '缺勤' }[status] || status || '-'
+    },
+    riskSeverity(severity) {
+      return { high: 'danger', medium: 'warning', low: 'info' }[severity] || 'info'
+    },
     paymentStatus(status) {
-      return { '0': '待确认', '1': '已确认', '2': '已驳回' }[status] || status
+      return { '0': '待确认', '1': '已确认', '2': '已驳回', '3': '已退款' }[status] || status
+    },
+    homeworkStatus(status) {
+      return { '0': '待提交', '1': '待反馈', '2': '已反馈' }[status] || status
     },
     openAnnouncement(row) {
       this.announcementForm = row ? { ...row } : emptyAnnouncement()
@@ -1636,12 +1921,91 @@ export default {
         .then(() => { this.$modal.msgSuccess(`付款已${action}`); this.loadAll() })
         .catch(() => {})
     },
+    refundPaymentRow(row) {
+      this.$prompt('请输入退款金额', '付款退款', {
+        inputValue: row.amount,
+        inputValidator: value => Number(value) > 0 && Number(value) <= Number(row.amount) || '退款金额不正确'
+      })
+        .then(({ value }) => refundPayment(row.paymentId, { refundAmount: Number(value), handleRemark: '退款' }))
+        .then(() => { this.$modal.msgSuccess('退款已记录'); this.loadAll() })
+        .catch(() => {})
+    },
+    reconcilePaymentRow(row) {
+      this.$prompt('请输入交易号或票据备注', '付款对账', { inputValue: row.tradeNo || row.receiptNo || '' })
+        .then(({ value }) => reconcilePayment(row.paymentId, {
+          tradeNo: value || row.tradeNo,
+          invoiceNo: row.invoiceNo,
+          receiptNo: row.receiptNo,
+          handleRemark: '对账完成'
+        }))
+        .then(() => { this.$modal.msgSuccess('对账已完成'); this.loadAll() })
+        .catch(() => {})
+    },
+    issueInvoiceRow(row) {
+      this.$prompt('请输入发票号', '付款开票', { inputValue: row.invoiceNo || `INV-${row.paymentId}` })
+        .then(({ value }) => issueInvoice(row.paymentId, { invoiceNo: value }))
+        .then(() => { this.$modal.msgSuccess('发票号已记录'); this.loadAll() })
+        .catch(() => {})
+    },
+    openHomeworks(row) {
+      this.currentMatch = row
+      this.homeworkForm = emptyHomework()
+      listHomeworks(row.matchId).then(r => {
+        this.homeworkRows = r.data || []
+        this.homeworkDialog = true
+      })
+    },
+    submitHomeworkForm() {
+      if (!this.homeworkForm.title || !this.homeworkForm.content) return this.$modal.msgError('请填写作业标题和内容')
+      addHomework(this.currentMatch.matchId, this.homeworkForm).then(() => {
+        this.$modal.msgSuccess('作业已布置')
+        this.openHomeworks(this.currentMatch)
+      })
+    },
+    submitHomeworkRow(row) {
+      this.$prompt('请输入作业提交内容', '提交作业', { inputValidator: value => !!value || '请填写提交内容' })
+        .then(({ value }) => submitHomework(row.homeworkId, { submitText: value }))
+        .then(() => { this.$modal.msgSuccess('作业已提交'); this.openHomeworks(this.currentMatch) })
+        .catch(() => {})
+    },
+    feedbackHomeworkRow(row) {
+      this.$prompt('请输入作业反馈', '反馈作业', { inputValidator: value => !!value || '请填写反馈内容' })
+        .then(({ value }) => feedbackHomework(row.homeworkId, { feedback: value }))
+        .then(() => { this.$modal.msgSuccess('作业反馈已保存'); this.openHomeworks(this.currentMatch) })
+        .catch(() => {})
+    },
+    submitBlacklist() {
+      this.$prompt('请输入用户ID', '加入黑名单', { inputValidator: value => Number(value) > 0 || '请输入用户ID' })
+        .then(({ value }) => this.$prompt('请输入限制原因', '加入黑名单', { inputValidator: reason => !!reason || '请输入原因' })
+          .then(({ value: reason }) => saveBlacklist({ userId: Number(value), reason })))
+        .then(() => { this.$modal.msgSuccess('黑名单已生效'); this.loadCurrentTab() })
+        .catch(() => {})
+    },
+    disableBlacklistRow(row) {
+      this.$modal.confirm('确认停用该黑名单记录吗？')
+        .then(() => disableBlacklist(row.blacklistId))
+        .then(() => { this.$modal.msgSuccess('黑名单已停用'); this.loadCurrentTab() })
+        .catch(() => {})
+    },
     submitFollowup() {
       if (!this.followupForm.matchId || !this.followupForm.content) return this.$modal.msgError('请填写订单ID和回访内容')
       addFollowup(this.followupForm.matchId, this.followupForm).then(() => {
         this.$modal.msgSuccess('回访记录已添加')
         this.followupForm = emptyFollowup()
         this.loadCurrentTab()
+      })
+    },
+    completeFollowupRow(row) {
+      completeFollowup(row.followupId).then(() => {
+        this.$modal.msgSuccess('回访已完成')
+        this.loadCurrentTab()
+        this.loadAdminTodos()
+      })
+    },
+    generateReminderRows() {
+      generateReminders().then(r => {
+        this.reminderResult = r.data || {}
+        this.$modal.msgSuccess('提醒已生成')
       })
     },
     openLearner(row) {
@@ -1699,6 +2063,14 @@ export default {
         this.$modal.msgSuccess('结算状态已更新')
         this.loadAll()
       }).catch(() => {})
+    },
+    batchSettleSelected() {
+      const ids = this.selectedSettlements.filter(row => row.status === '0').map(row => row.settlementId)
+      if (!ids.length) return this.$modal.msgError('请选择待结算记录')
+      this.$modal.confirm(`确认批量结算 ${ids.length} 条记录吗？`)
+        .then(() => batchSettleSettlements(ids))
+        .then(() => { this.$modal.msgSuccess('批量结算已完成'); this.loadAll() })
+        .catch(() => {})
     },
     openTicket() {
       this.ticketForm = emptyTicket()
@@ -1796,14 +2168,14 @@ export default {
     },
     openLessons(row) {
       this.currentMatch = row
-      this.lessonForm = { lessonDate: '', hours: 1, content: '', studentPerformance: '', homework: '', nextPlan: '' }
+      this.lessonForm = { lessonDate: '', startTime: '18:00', endTime: '20:00', hours: 1, content: '', studentPerformance: '', homework: '', nextPlan: '', attendanceStatus: '1', phaseFeedback: '' }
       listLessons(row.matchId).then(r => {
         this.lessons = r.data || []
         this.lessonDialog = true
       })
     },
     submitLesson() {
-      if (!this.lessonForm.lessonDate || !this.lessonForm.content) return this.$modal.msgError('请填写上课日期和授课内容')
+      if (!this.lessonForm.lessonDate || !this.lessonForm.startTime || !this.lessonForm.endTime || !this.lessonForm.content) return this.$modal.msgError('请填写上课日期、时间和授课内容')
       addLesson(this.currentMatch.matchId, this.lessonForm).then(() => {
         this.$modal.msgSuccess('上课记录已添加')
         this.openLessons(this.currentMatch)
@@ -1961,6 +2333,12 @@ export default {
 }
 @media (max-width: 640px) {
   .tutoring-page { padding: 10px; }
+  .workbench-content { overflow-x: auto; }
+  .filter-form >>> .el-form-item { display: block; margin-right: 0; }
+  .filter-form >>> .el-input,
+  .filter-form >>> .el-select,
+  .filter-form >>> .el-date-editor { width: 100%; }
+  .workbench-tabs >>> .el-table { min-width: 760px; }
   .workbench-hero, .content-header { display: block; }
   .hero-actions { justify-content: flex-start; margin-top: 12px; }
   .module-switcher { grid-template-columns: 1fr; }

@@ -2,6 +2,7 @@ package com.ruoyi.system.domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Date;
 import com.ruoyi.common.core.web.domain.BaseEntity;
 import jakarta.validation.constraints.DecimalMin;
@@ -20,12 +21,16 @@ public class TutoringLesson extends BaseEntity
     private String publisherName;
     private String tutorName;
     private LocalDate lessonDate;
+    private LocalTime startTime;
+    private LocalTime endTime;
     private BigDecimal hours;
     private String content;
     private BigDecimal amount;
     private String studentPerformance;
     private String homework;
     private String nextPlan;
+    private String attendanceStatus;
+    private String phaseFeedback;
     private String confirmStatus;
     private String confirmBy;
     private Date confirmTime;
@@ -44,6 +49,10 @@ public class TutoringLesson extends BaseEntity
     @NotNull(message = "上课日期不能为空")
     public LocalDate getLessonDate() { return lessonDate; }
     public void setLessonDate(LocalDate lessonDate) { this.lessonDate = lessonDate; }
+    public LocalTime getStartTime() { return startTime; }
+    public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
+    public LocalTime getEndTime() { return endTime; }
+    public void setEndTime(LocalTime endTime) { this.endTime = endTime; }
 
     @NotNull(message = "课时数不能为空")
     @DecimalMin(value = "0.5", message = "课时数不能少于0.5")
@@ -63,6 +72,10 @@ public class TutoringLesson extends BaseEntity
     public void setHomework(String homework) { this.homework = homework; }
     public String getNextPlan() { return nextPlan; }
     public void setNextPlan(String nextPlan) { this.nextPlan = nextPlan; }
+    public String getAttendanceStatus() { return attendanceStatus; }
+    public void setAttendanceStatus(String attendanceStatus) { this.attendanceStatus = attendanceStatus; }
+    public String getPhaseFeedback() { return phaseFeedback; }
+    public void setPhaseFeedback(String phaseFeedback) { this.phaseFeedback = phaseFeedback; }
     public String getConfirmStatus() { return confirmStatus; }
     public void setConfirmStatus(String confirmStatus) { this.confirmStatus = confirmStatus; }
     public String getConfirmBy() { return confirmBy; }

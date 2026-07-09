@@ -35,12 +35,16 @@
         <result property="publisherName" column="publisher_name"/>
         <result property="tutorName" column="tutor_name"/>
         <result property="lessonDate" column="lesson_date"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
         <result property="hours" column="hours"/>
         <result property="content" column="content"/>
         <result property="amount" column="amount"/>
         <result property="studentPerformance" column="student_performance"/>
         <result property="homework" column="homework"/>
         <result property="nextPlan" column="next_plan"/>
+        <result property="attendanceStatus" column="attendance_status"/>
+        <result property="phaseFeedback" column="phase_feedback"/>
         <result property="confirmStatus" column="confirm_status"/>
         <result property="confirmBy" column="confirm_by"/>
         <result property="confirmTime" column="confirm_time"/>
@@ -87,6 +91,8 @@
         <result property="publisherName" column="publisher_name"/>
         <result property="subject" column="subject"/>
         <result property="amount" column="amount"/>
+        <result property="platformFee" column="platform_fee"/>
+        <result property="netAmount" column="net_amount"/>
         <result property="status" column="status"/>
         <result property="settleBy" column="settle_by"/>
         <result property="settleTime" column="settle_time"/>
@@ -148,10 +154,65 @@
         <result property="tutorName" column="tutor_name"/>
         <result property="subject" column="subject"/>
         <result property="amount" column="amount"/>
+        <result property="platformFee" column="platform_fee"/>
+        <result property="refundAmount" column="refund_amount"/>
         <result property="proofUrl" column="proof_url"/>
+        <result property="payMethod" column="pay_method"/>
+        <result property="tradeNo" column="trade_no"/>
+        <result property="invoiceNo" column="invoice_no"/>
+        <result property="receiptNo" column="receipt_no"/>
+        <result property="reconciledStatus" column="reconciled_status"/>
         <result property="remark" column="remark"/>
         <result property="status" column="status"/>
         <result property="handleRemark" column="handle_remark"/>
+        <result property="handleBy" column="handle_by"/>
+        <result property="handleTime" column="handle_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <resultMap id="TutoringFinanceLedgerResult" type="TutoringFinanceLedger">
+        <id property="ledgerId" column="ledger_id"/>
+        <result property="bizType" column="biz_type"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="matchId" column="match_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="subject" column="subject"/>
+        <result property="amount" column="amount"/>
+        <result property="direction" column="direction"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <resultMap id="TutoringHomeworkResult" type="TutoringHomework">
+        <id property="homeworkId" column="homework_id"/>
+        <result property="matchId" column="match_id"/>
+        <result property="lessonId" column="lesson_id"/>
+        <result property="subject" column="subject"/>
+        <result property="publisherName" column="publisher_name"/>
+        <result property="tutorName" column="tutor_name"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="submitText" column="submit_text"/>
+        <result property="feedback" column="feedback"/>
+        <result property="status" column="status"/>
+        <result property="assignBy" column="assign_by"/>
+        <result property="submitBy" column="submit_by"/>
+        <result property="submitTime" column="submit_time"/>
+        <result property="checkBy" column="check_by"/>
+        <result property="checkTime" column="check_time"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <resultMap id="TutoringBlacklistResult" type="TutoringBlacklist">
+        <id property="blacklistId" column="blacklist_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="reason" column="reason"/>
+        <result property="status" column="status"/>
         <result property="handleBy" column="handle_by"/>
         <result property="handleTime" column="handle_time"/>
         <result property="createBy" column="create_by"/>
@@ -166,6 +227,7 @@
         <result property="tutorName" column="tutor_name"/>
         <result property="content" column="content"/>
         <result property="nextAction" column="next_action"/>
+        <result property="nextTime" column="next_time"/>
         <result property="status" column="status"/>
         <result property="createBy" column="create_by"/>
         <result property="createTime" column="create_time"/>
@@ -214,6 +276,7 @@
         <result property="scheduleText" column="schedule_text"/>
         <result property="hourlyBudget" column="hourly_budget"/>
         <result property="requirementText" column="requirement_text"/>
+        <result property="sourceChannel" column="source_channel"/>
         <result property="status" column="status"/>
         <result property="createTime" column="create_time"/>
         <result property="updateTime" column="update_time"/>
@@ -405,7 +468,7 @@
 
     <sql id="requestColumns">
         r.request_id, r.publisher_id, u.nick_name publisher_name, r.learner_grade,
-        r.subject, r.area, r.schedule_text, r.hourly_budget, r.requirement_text,
+        r.subject, r.area, r.schedule_text, r.hourly_budget, r.requirement_text, r.source_channel,
         r.status, r.create_time, r.update_time
     </sql>
 
@@ -446,6 +509,9 @@
         </if>
         <if test="status != null and status != ''">
             and r.status = #{status}
+        </if>
+        <if test="sourceChannel != null and sourceChannel != ''">
+            and r.source_channel = #{sourceChannel}
         </if>
         order by r.create_time desc
     </select>
@@ -528,10 +594,10 @@
     <insert id="insertRequest" useGeneratedKeys="true" keyProperty="requestId">
         insert into tutoring_request
         (publisher_id, learner_grade, subject, area, schedule_text, hourly_budget,
-         requirement_text, status, create_by, create_time)
+         requirement_text, source_channel, status, create_by, create_time)
         values
         (#{publisherId}, #{learnerGrade}, #{subject}, #{area}, #{scheduleText},
-         #{hourlyBudget}, #{requirementText}, '0', #{createBy}, sysdate())
+         #{hourlyBudget}, #{requirementText}, #{sourceChannel}, '0', #{createBy}, sysdate())
     </insert>
 
     <update id="updateRequestStatusIfCurrent">
@@ -613,8 +679,8 @@
     <select id="selectAllLessons" resultMap="TutoringLessonResult">
         select l.lesson_id, l.match_id, r.subject,
                publisher.nick_name publisher_name, tutor.nick_name tutor_name,
-               l.lesson_date, l.hours, l.content, l.amount, l.confirm_status,
-               l.student_performance, l.homework, l.next_plan,
+               l.lesson_date, l.start_time, l.end_time, l.hours, l.content, l.amount, l.confirm_status,
+               l.student_performance, l.homework, l.next_plan, l.attendance_status, l.phase_feedback,
                l.confirm_by, l.confirm_time, l.create_by, l.create_time
         from tutoring_lesson l
         join tutoring_match m on m.match_id = l.match_id
@@ -626,6 +692,38 @@
             and r.subject like concat('%', #{subject}, '%')
         </if>
         order by l.lesson_date desc, l.lesson_id desc
+    </select>
+
+    <select id="selectCalendarLessonsByUserId" resultMap="TutoringLessonResult">
+        select l.lesson_id, l.match_id, r.subject,
+               publisher.nick_name publisher_name, tutor.nick_name tutor_name,
+               l.lesson_date, l.start_time, l.end_time, l.hours, l.content, l.amount, l.confirm_status,
+               l.student_performance, l.homework, l.next_plan, l.attendance_status, l.phase_feedback,
+               l.confirm_by, l.confirm_time, l.create_by, l.create_time
+        from tutoring_lesson l
+        join tutoring_match m on m.match_id = l.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user publisher on publisher.user_id = r.publisher_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        where (m.tutor_id = #{userId} or r.publisher_id = #{userId})
+          and l.lesson_date &gt;= curdate()
+        order by l.lesson_date asc, l.start_time asc, l.lesson_id asc
+    </select>
+
+    <select id="selectLearningRecordsByUserId" resultMap="TutoringLessonResult">
+        select l.lesson_id, l.match_id, r.subject,
+               publisher.nick_name publisher_name, tutor.nick_name tutor_name,
+               l.lesson_date, l.start_time, l.end_time, l.hours, l.content, l.amount, l.confirm_status,
+               l.student_performance, l.homework, l.next_plan, l.attendance_status, l.phase_feedback,
+               l.confirm_by, l.confirm_time, l.create_by, l.create_time
+        from tutoring_lesson l
+        join tutoring_match m on m.match_id = l.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user publisher on publisher.user_id = r.publisher_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        where m.tutor_id = #{userId} or r.publisher_id = #{userId}
+        order by l.lesson_date desc, l.lesson_id desc
+        limit 100
     </select>
 
     <select id="countMatch" resultType="int">
@@ -703,6 +801,119 @@
         limit 5
     </select>
 
+    <select id="selectCrmStats" resultType="map">
+        select
+          (select count(1) from tutoring_request) leadCount,
+          (select count(1) from tutoring_request where status = '0') openLeads,
+          (select count(1) from tutoring_match) applyCount,
+          (select count(1) from tutoring_match where trial_status in ('1', '2')) trialCount,
+          (select count(1) from tutoring_match where status in ('1', '2')) acceptedCount,
+          coalesce((select round(count(1) * 100.0 / nullif((select count(1) from tutoring_request), 0), 1)
+                    from tutoring_match where status in ('1', '2')), 0) conversionRate,
+          (select count(1) from tutoring_followup where status = '0' and next_time &lt;= sysdate()) dueFollowups
+    </select>
+
+    <select id="selectSourceStats" resultType="map">
+        select coalesce(nullif(source_channel, ''), '平台发布') sourceChannel,
+               count(1) leadCount,
+               coalesce(sum(status in ('1', '2')), 0) convertedCount
+        from tutoring_request
+        group by coalesce(nullif(source_channel, ''), '平台发布')
+        order by leadCount desc, sourceChannel asc
+    </select>
+
+    <select id="selectOperationsReport" resultType="map">
+        select
+          (select count(1) from tutoring_request) leadCount,
+          (select count(1) from tutoring_match where status in ('1', '2')) dealCount,
+          coalesce((select round(count(1) * 100.0 / nullif((select count(1) from tutoring_request), 0), 1)
+                    from tutoring_match where status in ('1', '2')), 0) conversionRate,
+          (select count(1) from (
+             select publisher_id from tutoring_request group by publisher_id having count(1) &gt; 1
+           ) repeat_clients) repeatClients,
+          (select coalesce(sum(case when status = '1' then amount
+                                    when status = '3' then amount - coalesce(refund_amount, 0)
+                                    else 0 end), 0)
+             from tutoring_payment where status in ('1', '3')) gmv,
+          (select coalesce(sum(case when status in ('1', '3') then platform_fee else 0 end), 0)
+             from tutoring_payment where status in ('1', '3')) platformRevenue,
+          (select count(distinct tutor_id) from tutoring_match
+             where status in ('1', '2') and update_time &gt;= date_sub(sysdate(), interval 30 day)) activeTutors,
+          coalesce((select round(count(1) * 100.0 / nullif((select count(1) from tutoring_match), 0), 1)
+                    from tutoring_complaint), 0) complaintRate,
+          (select coalesce(round(avg(timestampdiff(hour, create_time, update_time)), 1), 0)
+             from tutoring_ticket where status in ('1', '2') and update_time is not null) avgTicketHours
+    </select>
+
+    <select id="selectSubjectHeat" resultType="map">
+        select r.subject,
+               count(distinct r.request_id) requestCount,
+               count(distinct m.match_id) matchCount,
+               coalesce(sum(case when p.status in ('1', '3')
+                                 then p.amount - coalesce(p.refund_amount, 0)
+                                 else 0 end), 0) gmv
+        from tutoring_request r
+        left join tutoring_match m on m.request_id = r.request_id
+        left join tutoring_payment p on p.match_id = m.match_id
+        group by r.subject
+        order by requestCount desc, gmv desc
+        limit 10
+    </select>
+
+    <select id="selectRiskAlerts" resultType="map">
+        select * from (
+          select 'complaint_sla' alertType, '投诉超时' title,
+                 concat('投诉#', c.complaint_id, ' 待处理超过2天') content,
+                 'high' severity, c.create_time createTime
+          from tutoring_complaint c
+          where c.status = '0' and c.create_time &lt; date_sub(sysdate(), interval 2 day)
+          union all
+          select 'price_abnormal' alertType, '异常报价' title,
+                 concat('需求#', r.request_id, ' ', r.subject, ' 预算', r.hourly_budget, '/小时') content,
+                 'medium' severity, r.create_time createTime
+          from tutoring_request r
+          where r.status = '0' and (r.hourly_budget &lt; 30 or r.hourly_budget &gt; 500)
+          union all
+          select 'cancel_high' alertType, '高频取消' title,
+                 concat(coalesce(u.nick_name, x.user_id), ' 取消订单', x.cancelCount, '次') content,
+                 'medium' severity, x.createTime
+          from (
+            select r.publisher_id user_id, count(1) cancelCount, max(m.update_time) createTime
+            from tutoring_match m
+            join tutoring_request r on r.request_id = m.request_id
+            where m.status = '4'
+            group by r.publisher_id
+            having count(1) &gt;= 3
+          ) x left join sys_user u on u.user_id = x.user_id
+          union all
+          select 'quality_low' alertType, '教员低分' title,
+                 concat(coalesce(u.nick_name, p.user_id), ' 平均评分', round(avg(m.rating), 1)) content,
+                 'medium' severity, max(m.update_time) createTime
+          from tutor_profile p
+          join tutoring_match m on m.tutor_id = p.user_id and m.rating is not null
+          left join sys_user u on u.user_id = p.user_id
+          group by p.user_id, u.nick_name
+          having avg(m.rating) &lt; 3
+          union all
+          select 'cert_pending' alertType, '证件待审' title,
+                 concat(coalesce(u.nick_name, p.user_id), ' 教员认证待审核') content,
+                 'low' severity, coalesce(p.update_time, p.create_time) createTime
+          from tutor_profile p
+          left join sys_user u on u.user_id = p.user_id
+          where p.verify_status = '0'
+            and datediff(sysdate(), coalesce(p.update_time, p.create_time)) &gt;= 3
+          union all
+          select 'blacklist' alertType, '黑名单限制' title,
+                 concat(coalesce(u.nick_name, b.user_id), ' 已被限制：', b.reason) content,
+                 'high' severity, b.create_time createTime
+          from tutoring_blacklist b
+          left join sys_user u on u.user_id = b.user_id
+          where b.status = '1'
+        ) alerts
+        order by createTime desc
+        limit 100
+    </select>
+
     <select id="selectAdminTodos" resultType="map">
         select
           (select count(1) from tutor_profile where verify_status = '0') pendingProfiles,
@@ -710,25 +921,38 @@
           (select count(1) from tutoring_match where status = '1' and datediff(sysdate(), create_time) &gt;= 7) staleMatches,
           (select count(1) from tutoring_lesson where confirm_status = '0') unconfirmedLessons,
           (select count(1) from tutoring_settlement where status = '0') pendingSettlements,
-          (select count(1) from tutoring_ticket where status = '0') pendingTickets
+          (select count(1) from tutoring_ticket where status = '0') pendingTickets,
+          (select count(1) from tutoring_followup where status = '0' and next_time &lt;= sysdate()) dueFollowups
     </select>
 
     <select id="selectLessonsByMatchId" resultMap="TutoringLessonResult">
-        select lesson_id, match_id, lesson_date, hours, content, amount,
-               student_performance, homework, next_plan,
+        select lesson_id, match_id, lesson_date, start_time, end_time, hours, content, amount,
+               student_performance, homework, next_plan, attendance_status, phase_feedback,
                confirm_status, confirm_by, confirm_time, create_by, create_time
         from tutoring_lesson
         where match_id = #{matchId}
         order by lesson_date desc, lesson_id desc
     </select>
 
+    <select id="countTutorLessonConflict" resultType="int">
+        select count(1)
+        from tutoring_lesson l
+        join tutoring_match m on m.match_id = l.match_id
+        where m.tutor_id = #{tutorId}
+          and l.lesson_date = #{lessonDate}
+          and l.start_time is not null
+          and l.end_time is not null
+          and l.start_time &lt; #{endTime}
+          and l.end_time &gt; #{startTime}
+    </select>
+
     <insert id="insertLesson" useGeneratedKeys="true" keyProperty="lessonId">
         insert into tutoring_lesson
-        (match_id, lesson_date, hours, content, amount, student_performance,
-         homework, next_plan, confirm_status, create_by, create_time)
+        (match_id, lesson_date, start_time, end_time, hours, content, amount, student_performance,
+         homework, next_plan, attendance_status, phase_feedback, confirm_status, create_by, create_time)
         values
-        (#{matchId}, #{lessonDate}, #{hours}, #{content}, #{amount}, #{studentPerformance},
-         #{homework}, #{nextPlan}, '0', #{createBy}, sysdate())
+        (#{matchId}, #{lessonDate}, #{startTime}, #{endTime}, #{hours}, #{content}, #{amount}, #{studentPerformance},
+         #{homework}, #{nextPlan}, #{attendanceStatus}, #{phaseFeedback}, '0', #{createBy}, sysdate())
     </insert>
 
     <update id="confirmLesson">
@@ -739,8 +963,9 @@
 
     <insert id="insertSettlementForLesson">
         insert ignore into tutoring_settlement
-        (lesson_id, match_id, tutor_id, amount, status, create_time)
-        select l.lesson_id, l.match_id, m.tutor_id, l.amount, '0', sysdate()
+        (lesson_id, match_id, tutor_id, amount, platform_fee, net_amount, status, create_time)
+        select l.lesson_id, l.match_id, m.tutor_id, l.amount,
+               round(l.amount * 0.10, 2), l.amount - round(l.amount * 0.10, 2), '0', sysdate()
         from tutoring_lesson l
         join tutoring_match m on m.match_id = l.match_id
         where l.lesson_id = #{lessonId} and l.confirm_status = '1'
@@ -749,7 +974,7 @@
     <sql id="settlementColumns">
         s.settlement_id, s.lesson_id, s.match_id, s.tutor_id,
         tutor.nick_name tutor_name, publisher.nick_name publisher_name,
-        r.subject, s.amount, s.status, s.settle_by, s.settle_time, s.create_time
+        r.subject, s.amount, s.platform_fee, s.net_amount, s.status, s.settle_by, s.settle_time, s.create_time
     </sql>
 
     <select id="selectSettlementsByTutorId" resultMap="TutoringSettlementResult">
@@ -796,6 +1021,16 @@
         where settlement_id = #{settlementId} and status = '0'
     </update>
 
+    <update id="batchSettleSettlements">
+        update tutoring_settlement
+        set status = '1', settle_by = #{settleBy}, settle_time = sysdate()
+        where status = '0'
+          and settlement_id in
+          <foreach collection="settlementIds" item="settlementId" open="(" separator="," close=")">
+              #{settlementId}
+          </foreach>
+    </update>
+
     <select id="countConfirmedLessons" resultType="int">
         select count(1) from tutoring_lesson
         where match_id = #{matchId} and confirm_status = '1'
@@ -835,7 +1070,8 @@
 
     <sql id="paymentColumns">
         p.payment_id, p.match_id, p.payer_id, payer.nick_name payer_name,
-        tutor.nick_name tutor_name, r.subject, p.amount, p.proof_url, p.remark,
+        tutor.nick_name tutor_name, r.subject, p.amount, p.platform_fee, p.refund_amount,
+        p.proof_url, p.pay_method, p.trade_no, p.invoice_no, p.receipt_no, p.reconciled_status, p.remark,
         p.status, p.handle_remark, p.handle_by, p.handle_time, p.create_by, p.create_time
     </sql>
 
@@ -876,21 +1112,157 @@
 
     <insert id="insertPayment" useGeneratedKeys="true" keyProperty="paymentId">
         insert into tutoring_payment
-        (match_id, payer_id, amount, proof_url, remark, status, create_by, create_time)
+        (match_id, payer_id, amount, platform_fee, refund_amount, proof_url, pay_method, trade_no,
+         invoice_no, receipt_no, reconciled_status, remark, status, create_by, create_time)
         values
-        (#{matchId}, #{payerId}, #{amount}, #{proofUrl}, #{remark}, #{status}, #{createBy}, sysdate())
+        (#{matchId}, #{payerId}, #{amount}, #{platformFee}, #{refundAmount}, #{proofUrl}, #{payMethod}, #{tradeNo},
+         #{invoiceNo}, #{receiptNo}, #{reconciledStatus}, #{remark}, #{status}, #{createBy}, sysdate())
     </insert>
 
     <update id="handlePayment">
         update tutoring_payment
         set status = #{status}, handle_remark = #{handleRemark}, handle_by = #{handleBy},
+            platform_fee = #{platformFee}, receipt_no = #{receiptNo},
             handle_time = sysdate()
         where payment_id = #{paymentId} and status = '0'
     </update>
 
+    <update id="refundPayment">
+        update tutoring_payment
+        set status = '3', refund_amount = #{refundAmount}, handle_remark = #{handleRemark},
+            handle_by = #{handleBy}, handle_time = sysdate()
+        where payment_id = #{paymentId} and status = '1'
+    </update>
+
+    <update id="reconcilePayment">
+        update tutoring_payment
+        set reconciled_status = '1', trade_no = #{tradeNo}, invoice_no = #{invoiceNo},
+            receipt_no = #{receiptNo}, handle_remark = #{handleRemark},
+            handle_by = #{handleBy}, handle_time = sysdate()
+        where payment_id = #{paymentId} and status in ('1', '3')
+    </update>
+
+    <update id="issueInvoice">
+        update tutoring_payment
+        set invoice_no = #{invoiceNo}, handle_by = #{handleBy}, handle_time = sysdate()
+        where payment_id = #{paymentId} and status in ('1', '3')
+    </update>
+
+    <sql id="financeLedgerColumns">
+        l.ledger_id, l.biz_type, l.biz_id, l.match_id, l.user_id, u.nick_name user_name,
+        r.subject, l.amount, l.direction, l.status, l.remark, l.create_by, l.create_time
+    </sql>
+
+    <select id="selectFinanceLedgers" resultMap="TutoringFinanceLedgerResult">
+        select <include refid="financeLedgerColumns"/>
+        from tutoring_finance_ledger l
+        left join sys_user u on u.user_id = l.user_id
+        left join tutoring_match m on m.match_id = l.match_id
+        left join tutoring_request r on r.request_id = m.request_id
+        where 1 = 1
+        <if test="bizType != null and bizType != ''">
+            and l.biz_type = #{bizType}
+        </if>
+        <if test="matchId != null">
+            and l.match_id = #{matchId}
+        </if>
+        <if test="status != null and status != ''">
+            and l.status = #{status}
+        </if>
+        order by l.create_time desc, l.ledger_id desc
+    </select>
+
+    <insert id="insertFinanceLedger" useGeneratedKeys="true" keyProperty="ledgerId">
+        insert into tutoring_finance_ledger
+        (biz_type, biz_id, match_id, user_id, amount, direction, status, remark, create_by, create_time)
+        values
+        (#{bizType}, #{bizId}, #{matchId}, #{userId}, #{amount}, #{direction}, #{status}, #{remark}, #{createBy}, sysdate())
+    </insert>
+
+    <sql id="homeworkColumns">
+        h.homework_id, h.match_id, h.lesson_id, r.subject,
+        publisher.nick_name publisher_name, tutor.nick_name tutor_name,
+        h.title, h.content, h.submit_text, h.feedback, h.status, h.assign_by,
+        h.submit_by, h.submit_time, h.check_by, h.check_time, h.create_time
+    </sql>
+
+    <select id="selectHomeworksByMatchId" resultMap="TutoringHomeworkResult">
+        select <include refid="homeworkColumns"/>
+        from tutoring_homework h
+        join tutoring_match m on m.match_id = h.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user publisher on publisher.user_id = r.publisher_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        where h.match_id = #{matchId}
+        order by h.create_time desc, h.homework_id desc
+    </select>
+
+    <select id="selectHomeworkById" resultMap="TutoringHomeworkResult">
+        select <include refid="homeworkColumns"/>
+        from tutoring_homework h
+        join tutoring_match m on m.match_id = h.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user publisher on publisher.user_id = r.publisher_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        where h.homework_id = #{homeworkId}
+    </select>
+
+    <insert id="insertHomework" useGeneratedKeys="true" keyProperty="homeworkId">
+        insert into tutoring_homework
+        (match_id, lesson_id, title, content, status, assign_by, create_by, create_time)
+        values
+        (#{matchId}, #{lessonId}, #{title}, #{content}, #{status}, #{assignBy}, #{createBy}, sysdate())
+    </insert>
+
+    <update id="submitHomework">
+        update tutoring_homework
+        set submit_text = #{submitText}, submit_by = #{submitBy}, submit_time = sysdate(), status = '1'
+        where homework_id = #{homeworkId} and status = '0'
+    </update>
+
+    <update id="feedbackHomework">
+        update tutoring_homework
+        set feedback = #{feedback}, check_by = #{checkBy}, check_time = sysdate(), status = '2'
+        where homework_id = #{homeworkId} and status = '1'
+    </update>
+
+    <select id="selectBlacklists" resultMap="TutoringBlacklistResult">
+        select b.blacklist_id, b.user_id, u.nick_name user_name, b.reason, b.status,
+               b.handle_by, b.handle_time, b.create_by, b.create_time
+        from tutoring_blacklist b
+        left join sys_user u on u.user_id = b.user_id
+        where 1 = 1
+        <if test="userId != null">
+            and b.user_id = #{userId}
+        </if>
+        <if test="status != null and status != ''">
+            and b.status = #{status}
+        </if>
+        order by b.status desc, b.create_time desc, b.blacklist_id desc
+    </select>
+
+    <insert id="insertBlacklist" useGeneratedKeys="true" keyProperty="blacklistId">
+        insert into tutoring_blacklist
+        (user_id, reason, status, create_by, create_time)
+        values (#{userId}, #{reason}, #{status}, #{createBy}, sysdate())
+        on duplicate key update reason = values(reason), status = '1',
+            create_by = values(create_by), create_time = sysdate()
+    </insert>
+
+    <update id="disableBlacklist">
+        update tutoring_blacklist
+        set status = '0', handle_by = #{handleBy}, handle_time = sysdate()
+        where blacklist_id = #{blacklistId} and status = '1'
+    </update>
+
+    <select id="countActiveBlacklist" resultType="int">
+        select count(1) from tutoring_blacklist
+        where user_id = #{userId} and status = '1'
+    </select>
+
     <select id="selectAllFollowups" resultMap="TutoringFollowupResult">
         select f.followup_id, f.match_id, r.subject, publisher.nick_name publisher_name,
-               tutor.nick_name tutor_name, f.content, f.next_action, f.status, f.create_by, f.create_time
+               tutor.nick_name tutor_name, f.content, f.next_action, f.next_time, f.status, f.create_by, f.create_time
         from tutoring_followup f
         join tutoring_match m on m.match_id = f.match_id
         join tutoring_request r on r.request_id = m.request_id
@@ -903,23 +1275,96 @@
         <if test="status != null and status != ''">
             and f.status = #{status}
         </if>
-        order by f.create_time desc, f.followup_id desc
+        order by f.status asc, f.next_time asc, f.create_time desc, f.followup_id desc
     </select>
 
     <insert id="insertFollowup" useGeneratedKeys="true" keyProperty="followupId">
         insert into tutoring_followup
-        (match_id, content, next_action, status, create_by, create_time)
+        (match_id, content, next_action, next_time, status, create_by, create_time)
         values
-        (#{matchId}, #{content}, #{nextAction}, #{status}, #{createBy}, sysdate())
+        (#{matchId}, #{content}, #{nextAction}, #{nextTime}, #{status}, #{createBy}, sysdate())
     </insert>
 
+    <update id="completeFollowup">
+        update tutoring_followup
+        set status = '1', update_by = #{updateBy}, update_time = sysdate()
+        where followup_id = #{followupId} and status = '0'
+    </update>
+
     <insert id="insertNotification">
-        insert into tutoring_notification (user_id, title, content, read_status, create_time)
-        values (#{userId}, #{title}, #{content}, '0', sysdate())
+        insert into tutoring_notification
+        (user_id, title, content, channel, template_code, send_status, read_status, create_time)
+        values (#{userId}, #{title}, #{content}, #{channel}, #{templateCode}, '0', '0', sysdate())
+    </insert>
+
+    <insert id="insertLessonReminders">
+        insert into tutoring_notification
+        (user_id, title, content, channel, template_code, send_status, read_status, create_time)
+        select m.tutor_id, '课前提醒',
+               concat(r.subject, ' 明天 ', coalesce(time_format(l.start_time, '%H:%i'), ''), ' 上课'),
+               'site', 'lesson_before', '0', '0', sysdate()
+        from tutoring_lesson l
+        join tutoring_match m on m.match_id = l.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        where l.lesson_date = date_add(curdate(), interval 1 day)
+          and not exists (
+            select 1 from tutoring_notification n
+            where n.user_id = m.tutor_id and n.template_code = 'lesson_before'
+              and n.content = concat(r.subject, ' 明天 ', coalesce(time_format(l.start_time, '%H:%i'), ''), ' 上课')
+          )
+        union all
+        select r.publisher_id, '课前提醒',
+               concat(r.subject, ' 明天 ', coalesce(time_format(l.start_time, '%H:%i'), ''), ' 上课'),
+               'site', 'lesson_before', '0', '0', sysdate()
+        from tutoring_lesson l
+        join tutoring_match m on m.match_id = l.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        where l.lesson_date = date_add(curdate(), interval 1 day)
+          and not exists (
+            select 1 from tutoring_notification n
+            where n.user_id = r.publisher_id and n.template_code = 'lesson_before'
+              and n.content = concat(r.subject, ' 明天 ', coalesce(time_format(l.start_time, '%H:%i'), ''), ' 上课')
+          )
+    </insert>
+
+    <insert id="insertPaymentReminders">
+        insert into tutoring_notification
+        (user_id, title, content, channel, template_code, send_status, read_status, create_time)
+        select r.publisher_id, '付款提醒',
+               concat('订单#', m.match_id, ' ', r.subject, ' 待付款确认'),
+               'site', 'payment_due', '0', '0', sysdate()
+        from tutoring_match m
+        join tutoring_request r on r.request_id = m.request_id
+        where m.status = '1'
+          and not exists (select 1 from tutoring_payment p where p.match_id = m.match_id and p.status = '1')
+          and not exists (
+            select 1 from tutoring_notification n
+            where n.user_id = r.publisher_id and n.template_code = 'payment_due'
+              and n.content = concat('订单#', m.match_id, ' ', r.subject, ' 待付款确认')
+          )
+    </insert>
+
+    <insert id="insertTicketReminders">
+        insert into tutoring_notification
+        (user_id, title, content, channel, template_code, send_status, read_status, create_time)
+        select u.user_id, '工单提醒',
+               concat('工单#', t.ticket_id, ' 待处理：', t.title),
+               'site', 'ticket_due', '0', '0', sysdate()
+        from tutoring_ticket t
+        join sys_user_role ur on 1 = 1
+        join sys_role ro on ro.role_id = ur.role_id and ro.role_key = 'admin'
+        join sys_user u on u.user_id = ur.user_id and u.del_flag = '0'
+        where t.status = '0' and t.create_time &lt; date_sub(sysdate(), interval 1 day)
+          and not exists (
+            select 1 from tutoring_notification n
+            where n.user_id = u.user_id and n.template_code = 'ticket_due'
+              and n.content = concat('工单#', t.ticket_id, ' 待处理：', t.title)
+          )
     </insert>
 
     <select id="selectNotificationsByUserId" resultType="TutoringNotification">
         select notification_id notificationId, user_id userId, title, content,
+               channel, template_code templateCode, send_status sendStatus,
                read_status readStatus, create_time createTime
         from tutoring_notification
         where user_id = #{userId}

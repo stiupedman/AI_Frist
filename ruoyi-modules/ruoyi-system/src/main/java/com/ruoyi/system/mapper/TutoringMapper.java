@@ -1,5 +1,7 @@
 package com.ruoyi.system.mapper;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import org.apache.ibatis.annotations.Param;
@@ -7,8 +9,11 @@ import com.ruoyi.system.api.domain.SysUser;
 import com.ruoyi.system.domain.TutorAvailability;
 import com.ruoyi.system.domain.TutorProfile;
 import com.ruoyi.system.domain.TutoringAnnouncement;
+import com.ruoyi.system.domain.TutoringBlacklist;
 import com.ruoyi.system.domain.TutoringComplaint;
+import com.ruoyi.system.domain.TutoringFinanceLedger;
 import com.ruoyi.system.domain.TutoringFollowup;
+import com.ruoyi.system.domain.TutoringHomework;
 import com.ruoyi.system.domain.TutoringInvitation;
 import com.ruoyi.system.domain.TutoringLesson;
 import com.ruoyi.system.domain.TutoringLearner;
@@ -96,6 +101,10 @@ public interface TutoringMapper
 
     List<TutoringLesson> selectAllLessons(TutoringLesson query);
 
+    List<TutoringLesson> selectCalendarLessonsByUserId(Long userId);
+
+    List<TutoringLesson> selectLearningRecordsByUserId(Long userId);
+
     int countMatch(@Param("requestId") Long requestId, @Param("tutorId") Long tutorId);
 
     int insertMatch(TutoringMatch match);
@@ -124,7 +133,20 @@ public interface TutoringMapper
 
     List<Map<String, Object>> selectTopSubjects();
 
+    Map<String, Object> selectCrmStats();
+
+    List<Map<String, Object>> selectSourceStats();
+
+    Map<String, Object> selectOperationsReport();
+
+    List<Map<String, Object>> selectSubjectHeat();
+
+    List<Map<String, Object>> selectRiskAlerts();
+
     List<TutoringLesson> selectLessonsByMatchId(Long matchId);
+
+    int countTutorLessonConflict(@Param("tutorId") Long tutorId, @Param("lessonDate") LocalDate lessonDate,
+        @Param("startTime") LocalTime startTime, @Param("endTime") LocalTime endTime);
 
     int insertLesson(TutoringLesson lesson);
 
@@ -140,6 +162,8 @@ public interface TutoringMapper
     TutoringSettlement selectSettlementById(Long settlementId);
 
     int settleSettlement(@Param("settlementId") Long settlementId, @Param("settleBy") String settleBy);
+
+    int batchSettleSettlements(@Param("settlementIds") List<Long> settlementIds, @Param("settleBy") String settleBy);
 
     int countConfirmedLessons(Long matchId);
 
@@ -161,12 +185,49 @@ public interface TutoringMapper
 
     int handlePayment(TutoringPayment payment);
 
+    int refundPayment(TutoringPayment payment);
+
+    int reconcilePayment(TutoringPayment payment);
+
+    int issueInvoice(TutoringPayment payment);
+
+    List<TutoringFinanceLedger> selectFinanceLedgers(TutoringFinanceLedger query);
+
+    int insertFinanceLedger(TutoringFinanceLedger ledger);
+
+    List<TutoringHomework> selectHomeworksByMatchId(Long matchId);
+
+    TutoringHomework selectHomeworkById(Long homeworkId);
+
+    int insertHomework(TutoringHomework homework);
+
+    int submitHomework(TutoringHomework homework);
+
+    int feedbackHomework(TutoringHomework homework);
+
+    List<TutoringBlacklist> selectBlacklists(TutoringBlacklist query);
+
+    int insertBlacklist(TutoringBlacklist blacklist);
+
+    int disableBlacklist(@Param("blacklistId") Long blacklistId, @Param("handleBy") String handleBy);
+
+    int countActiveBlacklist(Long userId);
+
     List<TutoringFollowup> selectAllFollowups(TutoringFollowup query);
 
     int insertFollowup(TutoringFollowup followup);
 
+    int completeFollowup(@Param("followupId") Long followupId, @Param("updateBy") String updateBy);
+
     int insertNotification(@Param("userId") Long userId, @Param("title") String title,
-        @Param("content") String content);
+        @Param("content") String content, @Param("channel") String channel,
+        @Param("templateCode") String templateCode);
+
+    int insertLessonReminders();
+
+    int insertPaymentReminders();
+
+    int insertTicketReminders();
 
     List<TutoringNotification> selectNotificationsByUserId(@Param("userId") Long userId,
         @Param("readStatus") String readStatus, @Param("title") String title);

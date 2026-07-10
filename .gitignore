@@ -53,3 +53,4 @@ docker/nacos/logs/
 docker/redis/data/
 docker/nginx/logs/
 docker/ruoyi/uploadPath/
+.worktrees/

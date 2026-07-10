@@ -20,6 +20,7 @@
 ## File Map
 
 - Create: `ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringMoney.java` — 金额上限、精度和平台抽成的纯规则模块。
+- Create: `ruoyi-modules/ruoyi-system/src/test/java/com/ruoyi/system/service/TutoringMoneySelfCheck.java` — 无测试框架依赖的金额规则自检。
 - Create: `sql/tutoring_finance.test.cjs` — 财务事务、幂等 SQL 和金额规则的最小可运行检查。
 - Modify: `ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringService.java` — 事务、金额校验、付款幂等和批量结算。
 - Modify: `ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/mapper/TutoringMapper.java` — 加锁查询和已确认付款计数。
@@ -48,13 +49,47 @@
 
 **Files:**
 - Create: `ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringMoney.java`
+- Create: `ruoyi-modules/ruoyi-system/src/test/java/com/ruoyi/system/service/TutoringMoneySelfCheck.java`
 - Modify: `ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringService.java`
 
 **Interfaces:**
 - Produces: `TutoringMoney.requireAmount(BigDecimal amount, String label)`；合法时返回原金额，非法时抛 `ServiceException`。
 - Produces: `TutoringMoney.fee(BigDecimal amount)`；返回四舍五入到两位的 10% 平台抽成。
 
-- [ ] **Step 1: 写金额规则及内置失败检查**
+- [ ] **Step 1: 先写金额规则自检**
+
+```java
+package com.ruoyi.system.service;
+
+import java.math.BigDecimal;
+import com.ruoyi.common.core.exception.ServiceException;
+
+public final class TutoringMoneySelfCheck
+{
+    public static void main(String[] args)
+    {
+        assert TutoringMoney.fee(new BigDecimal("100.00")).compareTo(new BigDecimal("10.00")) == 0;
+        assertInvalid(new BigDecimal("0"));
+        assertInvalid(new BigDecimal("1.001"));
+        assertInvalid(new BigDecimal("100000000"));
+    }
+
+    private static void assertInvalid(BigDecimal amount)
+    {
+        try { TutoringMoney.requireAmount(amount, "金额"); }
+        catch (ServiceException expected) { return; }
+        throw new AssertionError("expected invalid amount: " + amount);
+    }
+}
+```
+
+- [ ] **Step 2: 运行并确认 RED**
+
+Run: `mvn -pl ruoyi-modules/ruoyi-system -am -DskipTests test-compile`
+
+Expected: compilation failure containing `cannot find symbol TutoringMoney`。
+
+- [ ] **Step 3: 写最小金额规则实现**
 
 ```java
 package com.ruoyi.system.service;
@@ -85,34 +120,20 @@ final class TutoringMoney
             .setScale(2, RoundingMode.HALF_UP);
     }
 
-    public static void main(String[] args)
-    {
-        assert fee(new BigDecimal("100.00")).compareTo(new BigDecimal("10.00")) == 0;
-        assertInvalid(new BigDecimal("0"));
-        assertInvalid(new BigDecimal("1.001"));
-        assertInvalid(new BigDecimal("100000000"));
-    }
-
-    private static void assertInvalid(BigDecimal amount)
-    {
-        try { requireAmount(amount, "金额"); }
-        catch (ServiceException expected) { return; }
-        throw new AssertionError("expected invalid amount: " + amount);
-    }
 }
 ```
 
-- [ ] **Step 2: 编译并运行规则检查**
+- [ ] **Step 4: 编译并运行规则检查**
 
-Run: `mvn -pl ruoyi-modules/ruoyi-system -am -DskipTests compile`
+Run: `mvn -pl ruoyi-modules/ruoyi-system -am -DskipTests test-compile`
 
 Expected: `BUILD SUCCESS`
 
-Run: `java -ea -cp "ruoyi-modules/ruoyi-system/target/classes;ruoyi-common/ruoyi-common-core/target/classes" com.ruoyi.system.service.TutoringMoney`
+Run: `java -ea -cp "ruoyi-modules/ruoyi-system/target/test-classes;ruoyi-modules/ruoyi-system/target/classes;ruoyi-common/ruoyi-common-core/target/classes" com.ruoyi.system.service.TutoringMoneySelfCheck`
 
 Expected: exit code `0`，无输出。
 
-- [ ] **Step 3: 替换服务内手写金额判断**
+- [ ] **Step 5: 替换服务内手写金额判断**
 
 在 `addPayment`、`mockPayment` 和 `refundPayment` 中调用 `TutoringMoney.requireAmount`；退款继续额外检查 `refundAmount <= payment.amount`。将原 `fee` 方法替换为 `TutoringMoney.fee` 并删除重复实现。
 
@@ -122,16 +143,16 @@ payment.setAmount(amount);
 payment.setPlatformFee(TutoringMoney.fee(amount));
 ```
 
-- [ ] **Step 4: 重新编译**
+- [ ] **Step 6: 重新编译**
 
 Run: `mvn -pl ruoyi-modules/ruoyi-system -am -DskipTests compile`
 
 Expected: `BUILD SUCCESS`
 
-- [ ] **Step 5: 提交 A1**
+- [ ] **Step 7: 提交 A1**
 
 ```bash
-git add ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringMoney.java ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringService.java
+git add ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringMoney.java ruoyi-modules/ruoyi-system/src/test/java/com/ruoyi/system/service/TutoringMoneySelfCheck.java ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringService.java
 git commit -m "fix: 加固家教金额规则"
 ```
 

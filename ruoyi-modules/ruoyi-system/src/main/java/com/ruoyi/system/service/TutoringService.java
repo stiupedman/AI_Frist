@@ -35,9 +35,6 @@ import com.ruoyi.system.mapper.TutoringMapper;
 @Service
 public class TutoringService
 {
-    // ponytail: fixed fee rate for MVP; move to config when fee rules vary.
-    private static final BigDecimal PLATFORM_FEE_RATE = new BigDecimal("0.10");
-
     @Autowired
     private TutoringMapper mapper;
 
@@ -793,15 +790,16 @@ public class TutoringService
         {
             throw new ServiceException("只有进行中或已完成的订单可以提交付款凭证");
         }
-        if (payment == null || payment.getAmount() == null
-            || payment.getAmount().compareTo(BigDecimal.ZERO) <= 0 || blank(payment.getProofUrl()))
+        BigDecimal amount = TutoringMoney.requireAmount(payment == null ? null : payment.getAmount(), "付款金额");
+        if (blank(payment.getProofUrl()))
         {
             throw new ServiceException("请填写付款金额并上传凭证");
         }
+        payment.setAmount(amount);
         payment.setMatchId(matchId);
         payment.setPayerId(userId);
         payment.setPayMethod(blank(payment.getPayMethod()) ? "voucher" : payment.getPayMethod());
-        payment.setPlatformFee(fee(payment.getAmount()));
+        payment.setPlatformFee(TutoringMoney.fee(amount));
         payment.setRefundAmount(BigDecimal.ZERO);
         payment.setReconciledStatus("0");
         payment.setStatus("0");
@@ -822,17 +820,14 @@ public class TutoringService
         {
             throw new ServiceException("只能为自己发布需求产生的订单付款");
         }
-        if (payment == null || payment.getAmount() == null
-            || payment.getAmount().compareTo(BigDecimal.ZERO) <= 0)
-        {
-            throw new ServiceException("请填写付款金额");
-        }
+        BigDecimal amount = TutoringMoney.requireAmount(payment == null ? null : payment.getAmount(), "付款金额");
+        payment.setAmount(amount);
         payment.setMatchId(matchId);
         payment.setPayerId(userId);
         payment.setProofUrl("平台模拟支付");
         payment.setPayMethod("mock");
         payment.setTradeNo("MOCK-" + System.currentTimeMillis());
-        payment.setPlatformFee(fee(payment.getAmount()));
+        payment.setPlatformFee(TutoringMoney.fee(amount));
         payment.setRefundAmount(BigDecimal.ZERO);
         payment.setReceiptNo("RCPT-" + System.currentTimeMillis());
         payment.setReconciledStatus("0");
@@ -865,7 +860,7 @@ public class TutoringService
         }
         handling.setPaymentId(paymentId);
         handling.setHandleBy(username);
-        handling.setPlatformFee("1".equals(handling.getStatus()) ? fee(payment.getAmount()) : BigDecimal.ZERO);
+        handling.setPlatformFee("1".equals(handling.getStatus()) ? TutoringMoney.fee(payment.getAmount()) : BigDecimal.ZERO);
         if ("1".equals(handling.getStatus()) && blank(handling.getReceiptNo()))
         {
             handling.setReceiptNo("RCPT-" + paymentId);
@@ -895,7 +890,8 @@ public class TutoringService
             throw new ServiceException("付款流水不存在");
         }
         BigDecimal amount = refund == null ? null : refund.getRefundAmount();
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0 || amount.compareTo(payment.getAmount()) > 0)
+        amount = TutoringMoney.requireAmount(amount, "退款金额");
+        if (amount.compareTo(payment.getAmount()) > 0)
         {
             throw new ServiceException("退款金额不正确");
         }
@@ -1339,11 +1335,6 @@ public class TutoringService
     private boolean blank(String value)
     {
         return value == null || value.trim().isEmpty();
-    }
-
-    private BigDecimal fee(BigDecimal amount)
-    {
-        return amount.multiply(PLATFORM_FEE_RATE).setScale(2, RoundingMode.HALF_UP);
     }
 
     private void requireNotBlacklisted(Long userId)

@@ -8,6 +8,21 @@ const batchSql = fs.readFileSync('sql/tutoring_batch1_batch2_features.sql', 'utf
 const controller = fs.readFileSync('ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/controller/TutoringController.java', 'utf8')
 const webSocket = fs.readFileSync('ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/websocket/TutoringMessageEndpoint.java', 'utf8')
 
+const controllerFiles = [
+  'ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/controller/TutoringController.java',
+  'ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/controller/TutoringAdminController.java'
+].filter(fs.existsSync)
+const controllers = controllerFiles.map(file => fs.readFileSync(file, 'utf8'))
+
+for (const source of controllers) {
+  const lines = source.split(/\r?\n/)
+  lines.forEach((line, index) => {
+    if (!/@(Get|Post|Put|Delete)Mapping/.test(line)) return
+    assert.ok(lines.slice(Math.max(0, index - 3), index).some(item => /@RequiresPermissions/.test(item)),
+      `missing permission before ${line.trim()}`)
+  })
+}
+
 assert.match(repairSql, /tutoring:tutor:list/)
 assert.match(repairSql, /tutoring:business:monitor/)
 assert.match(repairSql, /2012/)

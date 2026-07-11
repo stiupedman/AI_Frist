@@ -93,6 +93,8 @@ public interface TutoringMapper
 
     TutoringMatch selectMatchById(Long matchId);
 
+    TutoringMatch selectMatchByIdForUpdate(Long matchId);
+
     List<TutoringMatch> selectMatchesByUserId(Long userId);
 
     List<TutoringMatch> selectAllMatches(TutoringMatch query);
@@ -184,6 +186,9 @@ public interface TutoringMapper
     int insertPayment(TutoringPayment payment);
 
     int handlePayment(TutoringPayment payment);
+
+    int countConfirmedPaymentsExcluding(@Param("matchId") Long matchId,
+        @Param("paymentId") Long paymentId);
 
     int refundPayment(TutoringPayment payment);
 

@@ -635,6 +635,16 @@
         where m.match_id = #{matchId}
     </select>
 
+    <select id="selectMatchByIdForUpdate" resultMap="TutoringMatchResult">
+        select <include refid="matchColumns"/>
+        from tutoring_match m
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        left join sys_user publisher on publisher.user_id = r.publisher_id
+        where m.match_id = #{matchId}
+        for update
+    </select>
+
     <select id="selectMatchesByUserId" resultMap="TutoringMatchResult">
         select <include refid="matchColumns"/>
         from tutoring_match m
@@ -1127,6 +1137,12 @@
         where payment_id = #{paymentId} and status = '0'
     </update>
 
+    <select id="countConfirmedPaymentsExcluding" resultType="int">
+        select count(1) from tutoring_payment
+        where match_id = #{matchId} and status = '1'
+        <if test="paymentId != null">and payment_id != #{paymentId}</if>
+    </select>
+
     <update id="refundPayment">
         update tutoring_payment
         set status = '3', refund_amount = #{refundAmount}, handle_remark = #{handleRemark},
@@ -1139,13 +1155,14 @@
         set reconciled_status = '1', trade_no = #{tradeNo}, invoice_no = #{invoiceNo},
             receipt_no = #{receiptNo}, handle_remark = #{handleRemark},
             handle_by = #{handleBy}, handle_time = sysdate()
-        where payment_id = #{paymentId} and status in ('1', '3')
+        where payment_id = #{paymentId} and status in ('1', '3') and reconciled_status = '0'
     </update>
 
     <update id="issueInvoice">
         update tutoring_payment
         set invoice_no = #{invoiceNo}, handle_by = #{handleBy}, handle_time = sysdate()
         where payment_id = #{paymentId} and status in ('1', '3')
+          and (invoice_no is null or invoice_no = '')
     </update>
 
     <sql id="financeLedgerColumns">

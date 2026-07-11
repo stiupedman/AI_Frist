@@ -652,6 +652,7 @@ public class TutoringService
         return mapper.selectMaterialsByMatchId(matchId);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public int addMaterial(Long matchId, TutoringMaterial material, Long userId, String username)
     {
         TutoringMatch match = requireMatch(matchId);
@@ -676,6 +677,7 @@ public class TutoringService
         return mapper.selectMessagesByMatchId(matchId);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public int addMessage(Long matchId, TutoringMessage message, Long userId, String username)
     {
         TutoringMatch match = requireMatch(matchId);
@@ -707,6 +709,7 @@ public class TutoringService
         return mapper.selectHomeworksByMatchId(matchId);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public int addHomework(Long matchId, TutoringHomework homework, Long userId, String username)
     {
         TutoringMatch match = requireMatch(matchId);
@@ -732,6 +735,7 @@ public class TutoringService
         return rows;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public int submitHomework(Long homeworkId, TutoringHomework homework, Long userId, String username)
     {
         TutoringHomework current = requireHomework(homeworkId);
@@ -754,6 +758,7 @@ public class TutoringService
         return 1;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public int feedbackHomework(Long homeworkId, TutoringHomework homework, Long userId, String username)
     {
         TutoringHomework current = requireHomework(homeworkId);
@@ -776,6 +781,7 @@ public class TutoringService
         return 1;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public int addPayment(Long matchId, TutoringPayment payment, Long userId, String username)
     {
         requireNotBlacklisted(userId);
@@ -811,14 +817,28 @@ public class TutoringService
         return rows;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public int mockPayment(Long matchId, TutoringPayment payment, Long userId, String username)
     {
         requireNotBlacklisted(userId);
-        TutoringMatch match = requireMatch(matchId);
+        TutoringMatch match = mapper.selectMatchByIdForUpdate(matchId);
+        if (match == null)
+        {
+            throw new ServiceException("订单不存在");
+        }
         requireParticipant(match, userId);
         if (!userId.equals(match.getPublisherId()))
         {
             throw new ServiceException("只能为自己发布需求产生的订单付款");
+        }
+        if (!TutoringStatus.MATCH_ACCEPTED.equals(match.getStatus())
+            && !TutoringStatus.MATCH_COMPLETED.equals(match.getStatus()))
+        {
+            throw new ServiceException("只有进行中或已完成订单可以付款");
+        }
+        if (mapper.countConfirmedPaymentsExcluding(matchId, null) > 0)
+        {
+            throw new ServiceException("该订单已完成付款");
         }
         BigDecimal amount = TutoringMoney.requireAmount(payment == null ? null : payment.getAmount(), "付款金额");
         payment.setAmount(amount);
@@ -858,6 +878,16 @@ public class TutoringService
         {
             throw new ServiceException("付款流水不存在");
         }
+        TutoringMatch match = mapper.selectMatchByIdForUpdate(payment.getMatchId());
+        if (match == null)
+        {
+            throw new ServiceException("订单不存在");
+        }
+        if ("1".equals(handling.getStatus())
+            && mapper.countConfirmedPaymentsExcluding(payment.getMatchId(), paymentId) > 0)
+        {
+            throw new ServiceException("该订单已完成付款");
+        }
         handling.setPaymentId(paymentId);
         handling.setHandleBy(username);
         handling.setPlatformFee("1".equals(handling.getStatus()) ? TutoringMoney.fee(payment.getAmount()) : BigDecimal.ZERO);
@@ -869,7 +899,6 @@ public class TutoringService
         {
             throw new ServiceException("该付款流水已处理");
         }
-        TutoringMatch match = requireMatch(payment.getMatchId());
         addLedger(payment.getMatchId(), payment.getPayerId(), "payment", paymentId, payment.getAmount(),
             "in", "1".equals(handling.getStatus()) ? "confirmed" : "rejected",
             "付款" + ("1".equals(handling.getStatus()) ? "确认" : "驳回"), username);
@@ -1093,13 +1122,19 @@ public class TutoringService
         return 1;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public int batchSettleSettlements(List<Long> settlementIds, String username)
     {
         if (settlementIds == null || settlementIds.isEmpty())
         {
             throw new ServiceException("请选择待结算记录");
         }
-        return mapper.batchSettleSettlements(settlementIds, username);
+        int rows = 0;
+        for (Long settlementId : settlementIds)
+        {
+            rows += settleSettlement(settlementId, username);
+        }
+        return rows;
     }
 
     public List<TutoringNotification> getNotifications(Long userId, TutoringNotification query)

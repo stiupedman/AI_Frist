@@ -165,8 +165,6 @@ public interface TutoringMapper
 
     int settleSettlement(@Param("settlementId") Long settlementId, @Param("settleBy") String settleBy);
 
-    int batchSettleSettlements(@Param("settlementIds") List<Long> settlementIds, @Param("settleBy") String settleBy);
-
     int countConfirmedLessons(Long matchId);
 
     List<TutoringMaterial> selectMaterialsByMatchId(Long matchId);
@@ -182,6 +180,8 @@ public interface TutoringMapper
     List<TutoringPayment> selectAllPayments(TutoringPayment query);
 
     TutoringPayment selectPaymentById(Long paymentId);
+
+    TutoringPayment selectPaymentByIdForUpdate(Long paymentId);
 
     int insertPayment(TutoringPayment payment);
 

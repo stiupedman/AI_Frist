@@ -1,6 +1,7 @@
 const assert = require('assert')
 const fs = require('fs')
 const service = fs.readFileSync('ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/service/TutoringService.java', 'utf8')
+const mapperJava = fs.readFileSync('ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/mapper/TutoringMapper.java', 'utf8')
 const mapper = fs.readFileSync('ruoyi-modules/ruoyi-system/src/main/resources/mapper/system/TutoringMapper.xml', 'utf8')
 
 for (const method of ['addPayment', 'mockPayment', 'addHomework', 'submitHomework', 'feedbackHomework', 'batchSettleSettlements']) {
@@ -9,7 +10,11 @@ for (const method of ['addPayment', 'mockPayment', 'addHomework', 'submitHomewor
 assert.match(service, /mockPayment[\s\S]*MATCH_ACCEPTED[\s\S]*MATCH_COMPLETED/)
 assert.match(service, /selectMatchByIdForUpdate/)
 assert.match(service, /countConfirmedPaymentsExcluding/)
+assert.match(service, /handlePayment[\s\S]*selectPaymentByIdForUpdate[\s\S]*selectMatchByIdForUpdate[\s\S]*countConfirmedPaymentsExcluding/)
 assert.match(mapper, /selectMatchByIdForUpdate[\s\S]*for update/)
 assert.match(mapper, /countConfirmedPaymentsExcluding/)
+assert.match(mapper, /selectPaymentByIdForUpdate[\s\S]*paymentColumns[\s\S]*where p\.payment_id = #\{paymentId\}[\s\S]*for update/)
 assert.match(mapper, /issueInvoice[\s\S]*invoice_no is null/)
 assert.match(mapper, /reconcilePayment[\s\S]*reconciled_status = '0'/)
+assert.doesNotMatch(mapperJava, /batchSettleSettlements/)
+assert.doesNotMatch(mapper, /<update id="batchSettleSettlements">/)

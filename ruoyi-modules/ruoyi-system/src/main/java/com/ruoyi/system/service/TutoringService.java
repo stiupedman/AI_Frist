@@ -873,7 +873,7 @@ public class TutoringService
         {
             throw new ServiceException("付款处理结果不正确");
         }
-        TutoringPayment payment = mapper.selectPaymentById(paymentId);
+        TutoringPayment payment = mapper.selectPaymentByIdForUpdate(paymentId);
         if (payment == null)
         {
             throw new ServiceException("付款流水不存在");

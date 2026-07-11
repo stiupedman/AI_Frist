@@ -1031,16 +1031,6 @@
         where settlement_id = #{settlementId} and status = '0'
     </update>
 
-    <update id="batchSettleSettlements">
-        update tutoring_settlement
-        set status = '1', settle_by = #{settleBy}, settle_time = sysdate()
-        where status = '0'
-          and settlement_id in
-          <foreach collection="settlementIds" item="settlementId" open="(" separator="," close=")">
-              #{settlementId}
-          </foreach>
-    </update>
-
     <select id="countConfirmedLessons" resultType="int">
         select count(1) from tutoring_lesson
         where match_id = #{matchId} and confirm_status = '1'
@@ -1118,6 +1108,17 @@
         left join sys_user payer on payer.user_id = p.payer_id
         left join sys_user tutor on tutor.user_id = m.tutor_id
         where p.payment_id = #{paymentId}
+    </select>
+
+    <select id="selectPaymentByIdForUpdate" resultMap="TutoringPaymentResult">
+        select <include refid="paymentColumns"/>
+        from tutoring_payment p
+        join tutoring_match m on m.match_id = p.match_id
+        join tutoring_request r on r.request_id = m.request_id
+        left join sys_user payer on payer.user_id = p.payer_id
+        left join sys_user tutor on tutor.user_id = m.tutor_id
+        where p.payment_id = #{paymentId}
+        for update
     </select>
 
     <insert id="insertPayment" useGeneratedKeys="true" keyProperty="paymentId">

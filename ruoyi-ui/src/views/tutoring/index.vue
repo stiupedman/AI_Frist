@@ -52,7 +52,12 @@
         </button>
       </div>
 
-      <section class="workbench-content">
+      <el-select v-model="activeTab" class="module-select" size="small" @change="switchTab">
+        <el-option v-for="item in workbenchNavItems" :key="item.name"
+          :label="item.badge ? `${item.label} (${item.badge})` : item.label" :value="item.name" />
+      </el-select>
+
+      <section v-loading="loading" class="workbench-content">
         <div class="content-header">
           <div>
             <h3>{{ activeNav.label }}</h3>
@@ -128,7 +133,7 @@
             <el-button icon="el-icon-refresh" @click="resetTutorSearch">重置</el-button>
           </el-form-item>
         </el-form>
-        <el-table v-loading="loading" :data="tutors">
+        <el-table :data="tutors">
           <el-table-column label="姓名" prop="userName" width="100" />
           <el-table-column label="学校" prop="university" />
           <el-table-column label="专业" prop="major" />
@@ -160,7 +165,7 @@
             <el-button icon="el-icon-refresh" @click="resetSearch">重置</el-button>
           </el-form-item>
         </el-form>
-        <el-table v-loading="loading" :data="openRequests">
+        <el-table :data="openRequests">
           <el-table-column label="科目" prop="subject" width="90" />
           <el-table-column label="年级" prop="learnerGrade" width="90" />
           <el-table-column label="区域" prop="area" min-width="120" />
@@ -963,7 +968,7 @@
       </section>
     </div>
 
-    <el-dialog title="教员资料" :visible.sync="profileDialog" width="620px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="教员资料" :visible.sync="profileDialog" width="620px" append-to-body>
       <el-form ref="profileForm" :model="profileForm" :rules="profileRules" label-width="100px">
         <el-alert class="mb8" :closable="false" :title="'资料完整度 ' + profileCompleteness + '%'" type="info" />
         <el-row :gutter="16">
@@ -982,7 +987,7 @@
       <div slot="footer"><el-button @click="profileDialog = false">取消</el-button><el-button type="primary" @click="submitProfile">保存并提交审核</el-button></div>
     </el-dialog>
 
-    <el-dialog title="发布家教需求" :visible.sync="requestDialog" width="620px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="发布家教需求" :visible.sync="requestDialog" width="620px" append-to-body>
       <el-form ref="requestForm" :model="requestForm" :rules="requestRules" label-width="100px">
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="学员年级" prop="learnerGrade"><el-input v-model="requestForm.learnerGrade" /></el-form-item></el-col>
@@ -994,10 +999,11 @@
           <el-col :span="24"><el-form-item label="补充要求" prop="requirementText"><el-input v-model="requestForm.requirementText" type="textarea" :rows="3" /></el-form-item></el-col>
         </el-row>
       </el-form>
-      <div slot="footer"><el-button @click="requestDialog = false">取消</el-button><el-button type="primary" @click="submitRequest">发布</el-button></div>
+      <div slot="footer"><el-button @click="requestDialog = false">取消</el-button><el-button type="primary"
+        :loading="submitting" :disabled="submitting" @click="submitRequest">发布</el-button></div>
     </el-dialog>
 
-    <el-dialog title="申请家教需求" :visible.sync="applyDialog" width="520px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="申请家教需求" :visible.sync="applyDialog" width="520px" append-to-body>
       <el-form ref="applyForm" :model="applyForm" :rules="applyRules" label-width="90px">
         <el-form-item label="报价/小时" prop="quotedRate"><el-input-number v-model="applyForm.quotedRate" :min="1" :precision="2" /></el-form-item>
         <el-form-item label="申请说明" prop="applicationText"><el-input v-model="applyForm.applicationText" type="textarea" :rows="3" /></el-form-item>
@@ -1005,7 +1011,7 @@
       <div slot="footer"><el-button @click="applyDialog = false">取消</el-button><el-button type="primary" @click="submitApply">提交申请</el-button></div>
     </el-dialog>
 
-    <el-dialog title="评价家教订单" :visible.sync="reviewDialog" width="520px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="评价家教订单" :visible.sync="reviewDialog" width="520px" append-to-body>
       <el-form ref="reviewForm" :model="reviewForm" label-width="80px">
         <el-form-item label="评分"><el-rate v-model="reviewForm.rating" /></el-form-item>
         <el-form-item label="评价"><el-input v-model="reviewForm.reviewText" type="textarea" :rows="3" /></el-form-item>
@@ -1013,7 +1019,7 @@
       <div slot="footer"><el-button @click="reviewDialog = false">取消</el-button><el-button type="primary" @click="submitReview">提交评价</el-button></div>
     </el-dialog>
 
-    <el-dialog title="课程记录" :visible.sync="lessonDialog" width="720px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="课程记录" :visible.sync="lessonDialog" width="720px" append-to-body>
       <el-table :data="lessons" size="small">
         <el-table-column label="上课日期" prop="lessonDate" width="110" />
         <el-table-column label="开始" prop="startTime" width="80" />
@@ -1056,16 +1062,18 @@
       </el-form>
       <div slot="footer">
         <el-button @click="lessonDialog = false">关闭</el-button>
-        <el-button v-if="currentMatch.status === '1' && actionVisible('matches', 'complete')" type="primary" @click="submitLesson">添加记录</el-button>
+        <el-button v-if="currentMatch.status === '1' && actionVisible('matches', 'complete')" type="primary"
+          :loading="submitting" :disabled="submitting" @click="submitLesson">添加记录</el-button>
       </div>
     </el-dialog>
 
-    <el-dialog title="提交订单投诉" :visible.sync="complaintDialog" width="520px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="提交订单投诉" :visible.sync="complaintDialog" width="520px" append-to-body>
       <el-input v-model="complaintForm.reason" type="textarea" :rows="5" maxlength="500" show-word-limit placeholder="请说明投诉原因" />
-      <div slot="footer"><el-button @click="complaintDialog = false">取消</el-button><el-button type="primary" @click="submitComplaintForm">提交</el-button></div>
+      <div slot="footer"><el-button @click="complaintDialog = false">取消</el-button><el-button type="primary"
+        :loading="submitting" :disabled="submitting" @click="submitComplaintForm">提交</el-button></div>
     </el-dialog>
 
-    <el-dialog title="预约教员" :visible.sync="inviteDialog" width="620px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="预约教员" :visible.sync="inviteDialog" width="620px" append-to-body>
       <el-form ref="inviteForm" :model="inviteForm" :rules="requestRules" label-width="100px">
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="学员年级" prop="learnerGrade"><el-input v-model="inviteForm.learnerGrade" /></el-form-item></el-col>
@@ -1079,7 +1087,7 @@
       <div slot="footer"><el-button @click="inviteDialog = false">取消</el-button><el-button type="primary" @click="submitInvite">发送预约</el-button></div>
     </el-dialog>
 
-    <el-dialog title="学员档案" :visible.sync="learnerDialog" width="620px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="学员档案" :visible.sync="learnerDialog" width="620px" append-to-body>
       <el-form :model="learnerForm" label-width="100px">
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="学员姓名"><el-input v-model="learnerForm.learnerName" /></el-form-item></el-col>
@@ -1094,7 +1102,7 @@
       <div slot="footer"><el-button @click="learnerDialog = false">取消</el-button><el-button type="primary" @click="submitLearner">保存</el-button></div>
     </el-dialog>
 
-    <el-dialog title="安排试听课" :visible.sync="trialDialog" width="520px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="安排试听课" :visible.sync="trialDialog" width="520px" append-to-body>
       <el-form :model="trialForm" label-width="90px">
         <el-form-item label="试听时间"><el-date-picker v-model="trialForm.trialTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="选择时间" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="trialForm.trialRemark" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
@@ -1102,7 +1110,7 @@
       <div slot="footer"><el-button @click="trialDialog = false">取消</el-button><el-button type="primary" @click="submitTrial">保存</el-button></div>
     </el-dialog>
 
-    <el-dialog title="客服工单" :visible.sync="ticketDialog" width="560px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="客服工单" :visible.sync="ticketDialog" width="560px" append-to-body>
       <el-form :model="ticketForm" label-width="90px">
         <el-form-item label="标题"><el-input v-model="ticketForm.title" maxlength="100" show-word-limit /></el-form-item>
         <el-form-item label="问题描述"><el-input v-model="ticketForm.content" type="textarea" :rows="5" maxlength="500" show-word-limit /></el-form-item>
@@ -1110,7 +1118,7 @@
       <div slot="footer"><el-button @click="ticketDialog = false">取消</el-button><el-button type="primary" @click="submitTicketForm">提交</el-button></div>
     </el-dialog>
 
-    <el-dialog title="课程资料" :visible.sync="materialDialog" width="640px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="课程资料" :visible.sync="materialDialog" width="640px" append-to-body>
       <el-table :data="materialRows" size="small">
         <el-table-column label="标题" prop="title" width="160" />
         <el-table-column label="链接" min-width="220">
@@ -1128,7 +1136,7 @@
       <div slot="footer"><el-button @click="materialDialog = false">关闭</el-button><el-button type="primary" @click="submitMaterial">添加资料</el-button></div>
     </el-dialog>
 
-    <el-dialog title="订单沟通" :visible.sync="messageDialog" width="640px" append-to-body @close="closeChatSocket">
+    <el-dialog custom-class="tutoring-dialog" title="订单沟通" :visible.sync="messageDialog" width="640px" append-to-body @close="closeChatSocket">
       <div class="chat-status"><el-tag size="mini" :type="chatConnected ? 'success' : 'info'">{{ chatConnected ? '实时连接' : '普通留言' }}</el-tag></div>
       <el-table :data="messageRows" size="small" max-height="300">
         <el-table-column label="发送人" prop="senderName" width="110" />
@@ -1142,7 +1150,7 @@
       <div slot="footer"><el-button @click="messageDialog = false">关闭</el-button><el-button type="primary" @click="submitMessage">发送</el-button></div>
     </el-dialog>
 
-    <el-dialog title="订单付款" :visible.sync="paymentDialog" width="680px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="订单付款" :visible.sync="paymentDialog" width="680px" append-to-body>
       <el-table :data="paymentRows" size="small">
         <el-table-column label="金额" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
         <el-table-column label="方式" prop="payMethod" width="90" />
@@ -1166,12 +1174,12 @@
       </el-form>
       <div slot="footer">
         <el-button @click="paymentDialog = false">关闭</el-button>
-        <el-button @click="submitMockPayment">模拟支付</el-button>
-        <el-button type="primary" @click="submitPayment">提交凭证</el-button>
+        <el-button :loading="submitting" :disabled="submitting" @click="submitMockPayment">模拟支付</el-button>
+        <el-button type="primary" :loading="submitting" :disabled="submitting" @click="submitPayment">提交凭证</el-button>
       </div>
     </el-dialog>
 
-    <el-dialog title="课后作业" :visible.sync="homeworkDialog" width="760px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="课后作业" :visible.sync="homeworkDialog" width="760px" append-to-body>
       <el-table :data="homeworkRows" size="small">
         <el-table-column label="标题" prop="title" width="140" />
         <el-table-column label="内容" prop="content" min-width="180" show-overflow-tooltip />
@@ -1192,11 +1200,12 @@
       </el-form>
       <div slot="footer">
         <el-button @click="homeworkDialog = false">关闭</el-button>
-        <el-button v-if="workbenchRole === 'tutor'" type="primary" @click="submitHomeworkForm">布置作业</el-button>
+        <el-button v-if="workbenchRole === 'tutor'" type="primary" :loading="submitting" :disabled="submitting"
+          @click="submitHomeworkForm">布置作业</el-button>
       </div>
     </el-dialog>
 
-    <el-dialog title="平台公告" :visible.sync="announcementDialog" width="620px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="平台公告" :visible.sync="announcementDialog" width="620px" append-to-body>
       <el-form :model="announcementForm" label-width="90px">
         <el-form-item label="标题"><el-input v-model="announcementForm.title" /></el-form-item>
         <el-form-item label="内容"><el-input v-model="announcementForm.content" type="textarea" :rows="5" maxlength="1000" show-word-limit /></el-form-item>
@@ -1210,7 +1219,7 @@
       <div slot="footer"><el-button @click="announcementDialog = false">取消</el-button><el-button type="primary" @click="submitAnnouncement">保存</el-button></div>
     </el-dialog>
 
-    <el-dialog title="教员详情" :visible.sync="tutorDialog" width="560px" append-to-body>
+    <el-dialog custom-class="tutoring-dialog" title="教员详情" :visible.sync="tutorDialog" width="560px" append-to-body>
       <el-descriptions :column="2" border>
         <el-descriptions-item label="姓名">{{ tutorDetail.userName }}</el-descriptions-item>
         <el-descriptions-item label="学校">{{ tutorDetail.university }}</el-descriptions-item>
@@ -1318,7 +1327,7 @@ export default {
   name: 'TutoringWorkbench',
   data() {
     return {
-      activeTab: '', loading: false,
+      activeTab: '', loading: false, submitting: false,
       tutors: [], openRequests: [], recommendedRequests: [], myRequests: [], matches: [], pendingProfiles: [],
       notifications: [], complaints: [], favoriteTutors: [], invitations: [], lessons: [], calendarRows: [], learningRows: [],
       learnerRows: [], availabilityRows: [], settlementRows: [], ticketRows: [],
@@ -1530,6 +1539,11 @@ export default {
       if (this.activeTab === name) return this.loadCurrentTab()
       this.activeTab = name
       return this.loadCurrentTab()
+    },
+    submitOnce(action) {
+      if (this.submitting) return Promise.resolve(false)
+      this.submitting = true
+      return Promise.resolve().then(action).finally(() => { this.submitting = false })
     },
     goProfile() {
       this.$router.push('/user/profile')
@@ -1902,17 +1916,17 @@ export default {
     },
     submitPayment() {
       if (!this.paymentForm.amount || !this.paymentForm.proofUrl) return this.$modal.msgError('请填写付款金额并上传凭证')
-      addPayment(this.currentMatch.matchId, this.paymentForm).then(() => {
+      return this.submitOnce(() => addPayment(this.currentMatch.matchId, this.paymentForm).then(() => {
         this.$modal.msgSuccess('付款凭证已提交')
         this.openPayments(this.currentMatch)
-      })
+      }))
     },
     submitMockPayment() {
       if (!this.paymentForm.amount) return this.$modal.msgError('请填写付款金额')
-      mockPayment(this.currentMatch.matchId, { amount: this.paymentForm.amount, remark: this.paymentForm.remark }).then(() => {
+      return this.submitOnce(() => mockPayment(this.currentMatch.matchId, { amount: this.paymentForm.amount, remark: this.paymentForm.remark }).then(() => {
         this.$modal.msgSuccess('模拟支付成功')
         this.openPayments(this.currentMatch)
-      })
+      }))
     },
     handlePaymentRow(row, status) {
       const action = status === '1' ? '确认' : '驳回'
@@ -1957,10 +1971,10 @@ export default {
     },
     submitHomeworkForm() {
       if (!this.homeworkForm.title || !this.homeworkForm.content) return this.$modal.msgError('请填写作业标题和内容')
-      addHomework(this.currentMatch.matchId, this.homeworkForm).then(() => {
+      return this.submitOnce(() => addHomework(this.currentMatch.matchId, this.homeworkForm).then(() => {
         this.$modal.msgSuccess('作业已布置')
         this.openHomeworks(this.currentMatch)
-      })
+      }))
     },
     submitHomeworkRow(row) {
       this.$prompt('请输入作业提交内容', '提交作业', { inputValidator: value => !!value || '请填写提交内容' })
@@ -2107,13 +2121,13 @@ export default {
     submitRequest() {
       this.$refs.requestForm.validate(valid => {
         if (!valid) return
-        publishRequest(this.requestForm).then(() => {
+        this.submitOnce(() => publishRequest(this.requestForm).then(() => {
           this.$modal.msgSuccess('需求发布成功')
           this.requestDialog = false
           this.requestForm = emptyRequest()
           this.activeTab = 'requests'
           this.loadCurrentTab()
-        })
+        }))
       })
     },
     cancelOwnRequest(row) {
@@ -2176,10 +2190,10 @@ export default {
     },
     submitLesson() {
       if (!this.lessonForm.lessonDate || !this.lessonForm.startTime || !this.lessonForm.endTime || !this.lessonForm.content) return this.$modal.msgError('请填写上课日期、时间和授课内容')
-      addLesson(this.currentMatch.matchId, this.lessonForm).then(() => {
+      return this.submitOnce(() => addLesson(this.currentMatch.matchId, this.lessonForm).then(() => {
         this.$modal.msgSuccess('上课记录已添加')
         this.openLessons(this.currentMatch)
-      })
+      }))
     },
     confirmLessonRow(row) {
       confirmLesson(this.currentMatch.matchId, row.lessonId).then(() => {
@@ -2205,11 +2219,11 @@ export default {
     },
     submitComplaintForm() {
       if (!this.complaintForm.reason.trim()) return this.$modal.msgError('请填写投诉原因')
-      submitComplaint(this.complaintForm.matchId, { reason: this.complaintForm.reason }).then(() => {
+      return this.submitOnce(() => submitComplaint(this.complaintForm.matchId, { reason: this.complaintForm.reason }).then(() => {
         this.$modal.msgSuccess('投诉已提交')
         this.complaintDialog = false
         this.loadAll()
-      })
+      }))
     },
     handleComplaintRow(row, status) {
       const action = status === '1' ? '解决' : '驳回'
@@ -2310,6 +2324,7 @@ export default {
 .metric-value { color: #1f2d3d; font-size: 24px; line-height: 1.2; font-weight: 700; }
 .metric-label { margin-top: 2px; color: #303133; font-size: 13px; font-weight: 600; }
 .metric-note { margin-top: 4px; color: #8a96a8; font-size: 12px; line-height: 1.3; }
+.module-select { display: none; width: 100%; margin-bottom: 12px; }
 .module-switcher { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 10px; border: 1px solid #e4e9f2; border-radius: 8px; background: #fff; }
 .module-tab { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid transparent; border-radius: 6px; color: #4d5b6c; background: transparent; font-size: 14px; line-height: 34px; cursor: pointer; }
 .module-tab:hover { color: #2f6fdd; background: #f4f8ff; }
@@ -2333,6 +2348,8 @@ export default {
 }
 @media (max-width: 640px) {
   .tutoring-page { padding: 10px; }
+  .module-switcher { display: none; }
+  .module-select { display: block; }
   .workbench-content { overflow-x: auto; }
   .filter-form >>> .el-form-item { display: block; margin-right: 0; }
   .filter-form >>> .el-input,
@@ -2341,8 +2358,14 @@ export default {
   .workbench-tabs >>> .el-table { min-width: 760px; }
   .workbench-hero, .content-header { display: block; }
   .hero-actions { justify-content: flex-start; margin-top: 12px; }
-  .module-switcher { grid-template-columns: 1fr; }
   .metric-card { min-height: 86px; padding: 12px; }
   .metric-value { font-size: 20px; }
+}
+</style>
+
+<style>
+@media (max-width: 640px) {
+  .tutoring-dialog { width: 94% !important; margin-top: 5vh !important; }
+  .tutoring-dialog .el-dialog__footer .el-button { min-width: 88px; margin-bottom: 6px; }
 }
 </style>

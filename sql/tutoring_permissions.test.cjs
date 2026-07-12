@@ -5,14 +5,19 @@ const repairSql = fs.readFileSync('sql/repair_tutoring_encoding.sql', 'utf8')
 const configSql = fs.readFileSync('sql/ry_config_20260611.sql', 'utf8')
 const featuresSql = fs.readFileSync('sql/tutoring_features.sql', 'utf8')
 const batchSql = fs.readFileSync('sql/tutoring_batch1_batch2_features.sql', 'utf8')
-const controller = fs.readFileSync('ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/controller/TutoringController.java', 'utf8')
 const webSocket = fs.readFileSync('ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/websocket/TutoringMessageEndpoint.java', 'utf8')
 
 const controllerFiles = [
   'ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/controller/TutoringController.java',
   'ruoyi-modules/ruoyi-system/src/main/java/com/ruoyi/system/controller/TutoringAdminController.java'
-].filter(fs.existsSync)
+]
+controllerFiles.forEach(file => assert.ok(fs.existsSync(file), `missing controller ${file}`))
 const controllers = controllerFiles.map(file => fs.readFileSync(file, 'utf8'))
+const [userController, adminController] = controllers
+const controller = controllers.join('\n')
+
+assert.doesNotMatch(userController, /tutoring:business:monitor/)
+assert.match(adminController, /tutoring:business:monitor/)
 
 for (const source of controllers) {
   const lines = source.split(/\r?\n/)

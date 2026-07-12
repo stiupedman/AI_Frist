@@ -297,7 +297,7 @@
           <el-table-column label="教员" prop="tutorName" width="110" />
           <el-table-column label="课时" prop="hours" width="80" />
           <el-table-column label="确认" width="90">
-            <template slot-scope="scope">{{ scope.row.confirmStatus === '1' ? '已确认' : '待确认' }}</template>
+            <template slot-scope="scope">{{ confirmStatus(scope.row.confirmStatus) }}</template>
           </el-table-column>
           <el-table-column label="内容" prop="content" min-width="180" show-overflow-tooltip />
         </el-table>
@@ -735,7 +735,7 @@
           <el-table-column label="课时" prop="hours" width="80" />
           <el-table-column label="课时费" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
           <el-table-column label="出勤" width="80"><template slot-scope="scope">{{ attendanceStatus(scope.row.attendanceStatus) }}</template></el-table-column>
-          <el-table-column label="确认" width="90"><template slot-scope="scope">{{ scope.row.confirmStatus === '1' ? '已确认' : '待确认' }}</template></el-table-column>
+          <el-table-column label="确认" width="90"><template slot-scope="scope">{{ confirmStatus(scope.row.confirmStatus) }}</template></el-table-column>
           <el-table-column label="内容" prop="content" min-width="180" show-overflow-tooltip />
           <el-table-column label="阶段反馈" prop="phaseFeedback" min-width="160" show-overflow-tooltip />
           <el-table-column label="记录时间" prop="createTime" width="170" />
@@ -1033,7 +1033,7 @@
         <el-table-column label="下节计划" prop="nextPlan" min-width="120" show-overflow-tooltip />
         <el-table-column label="课时费" width="100"><template slot-scope="scope">￥{{ scope.row.amount }}</template></el-table-column>
         <el-table-column label="确认" width="90">
-          <template slot-scope="scope">{{ scope.row.confirmStatus === '1' ? '已确认' : '待确认' }}</template>
+          <template slot-scope="scope">{{ confirmStatus(scope.row.confirmStatus) }}</template>
         </el-table-column>
         <el-table-column v-if="actionVisible('matches', 'confirmLesson')" label="操作" width="90">
           <template slot-scope="scope">
@@ -1260,6 +1260,7 @@ import {
 } from '@/api/tutoring'
 import { getToken } from '@/utils/auth'
 const { resolveWorkbenchRole, getWorkbenchConfig } = require('./roleConfig.cjs')
+const { statusText } = require('./viewConfig.cjs')
 
 const emptyProfile = () => ({ university: '', major: '', collegeYear: '', subjects: '', hourlyRate: 60, availabilityText: '', introduction: '', studentCardUrl: '', qualificationUrl: '' })
 const emptyRequest = () => ({ learnerGrade: '', subject: '', area: '', scheduleText: '', hourlyBudget: 80, requirementText: '', sourceChannel: '平台发布' })
@@ -1502,8 +1503,8 @@ export default {
       return Math.round(filled * 100 / fields.length)
     },
     profileVerifyText() {
-      const text = { '0': '资料待审核', '1': '资料已通过审核', '2': '资料被驳回' }[this.profileForm.verifyStatus]
-      return `${text || '尚未提交教员资料'}${this.profileForm.verifyRemark ? '：' + this.profileForm.verifyRemark : ''}`
+      const text = statusText('profileVerify', this.profileForm.verifyStatus, '尚未提交教员资料')
+      return `${text}${this.profileForm.verifyRemark ? '：' + this.profileForm.verifyRemark : ''}`
     }
   },
   created() { this.initWorkbench() },
@@ -1694,12 +1695,12 @@ export default {
     handleAdminExport(type, query) {
       this.download(`system/tutoring/admin/export/${type}`, query, `tutoring-${type}-${new Date().getTime()}.csv`)
     },
-    requestStatus(status) { return { '0': '招募中', '1': '已匹配', '2': '已完成', '3': '已取消' }[status] || status },
-    matchStatus(status) { return { '0': '申请中', '1': '已接单', '2': '已完成', '3': '未选中', '4': '已取消' }[status] || status },
-    complaintStatus(status) { return { '0': '待处理', '1': '已解决', '2': '已驳回' }[status] || status },
-    invitationStatus(status) { return { '0': '待处理', '1': '已接受', '2': '已拒绝' }[status] || status },
-    userStatus(status) { return { '0': '正常', '1': '停用' }[status] || status || '-' },
-    verifyStatus(status) { return { '0': '待审核', '1': '已通过', '2': '已驳回' }[status] || '未提交' },
+    requestStatus(status) { return statusText('request', status) },
+    matchStatus(status) { return statusText('match', status) },
+    complaintStatus(status) { return statusText('complaint', status) },
+    invitationStatus(status) { return statusText('invitation', status) },
+    userStatus(status) { return statusText('user', status) },
+    verifyStatus(status) { return statusText('verify', status, '未提交') },
     searchRequests() {
       if (this.queryForm.minBudget != null && this.queryForm.maxBudget != null && this.queryForm.minBudget > this.queryForm.maxBudget) {
         return this.$modal.msgError('最低预算不能高于最高预算')
@@ -1797,33 +1798,18 @@ export default {
     weekDayText(day) {
       return { '1': '周一', '2': '周二', '3': '周三', '4': '周四', '5': '周五', '6': '周六', '7': '周日' }[day] || day
     },
-    trialStatus(status) {
-      return { '0': '未安排', '1': '待试听', '2': '已完成' }[status] || '未安排'
-    },
-    settlementStatus(status) {
-      return { '0': '待结算', '1': '已结算' }[status] || status
-    },
-    ticketStatus(status) {
-      return { '0': '待处理', '1': '已解决', '2': '已关闭' }[status] || status
-    },
-    announcementStatus(status) {
-      return { '0': '草稿', '1': '发布' }[status] || status
-    },
-    followupStatus(status) {
-      return { '0': '待跟进', '1': '已完成' }[status] || status
-    },
-    attendanceStatus(status) {
-      return { '0': '待确认', '1': '到课', '2': '请假', '3': '缺勤' }[status] || status || '-'
-    },
+    trialStatus(status) { return statusText('trial', status, '未安排') },
+    settlementStatus(status) { return statusText('settlement', status) },
+    ticketStatus(status) { return statusText('ticket', status) },
+    announcementStatus(status) { return statusText('announcement', status) },
+    followupStatus(status) { return statusText('followup', status) },
+    attendanceStatus(status) { return statusText('attendance', status) },
+    confirmStatus(status) { return statusText('confirm', status, '待确认') },
     riskSeverity(severity) {
       return { high: 'danger', medium: 'warning', low: 'info' }[severity] || 'info'
     },
-    paymentStatus(status) {
-      return { '0': '待确认', '1': '已确认', '2': '已驳回', '3': '已退款' }[status] || status
-    },
-    homeworkStatus(status) {
-      return { '0': '待提交', '1': '待反馈', '2': '已反馈' }[status] || status
-    },
+    paymentStatus(status) { return statusText('payment', status) },
+    homeworkStatus(status) { return statusText('homework', status) },
     openAnnouncement(row) {
       this.announcementForm = row ? { ...row } : emptyAnnouncement()
       this.announcementDialog = true

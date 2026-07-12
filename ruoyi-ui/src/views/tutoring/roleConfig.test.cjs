@@ -1,6 +1,17 @@
 const assert = require('assert')
 const fs = require('fs')
 const { resolveWorkbenchRole, getWorkbenchConfig } = require('./roleConfig.cjs')
+const { statusText } = require('./viewConfig.cjs')
+
+assert.strictEqual(statusText('request', '0'), '招募中')
+assert.strictEqual(statusText('match', '4'), '已取消')
+assert.strictEqual(statusText('payment', '0'), '待审核')
+assert.strictEqual(statusText('payment', '3'), '已退款')
+assert.strictEqual(statusText('trial', '1'), '待试听')
+assert.strictEqual(statusText('attendance', '3'), '缺勤')
+assert.strictEqual(statusText('confirm', '1'), '已确认')
+assert.strictEqual(statusText('profileVerify', '2'), '资料被驳回')
+assert.strictEqual(statusText('unknown', 'x', '-'), '-')
 
 const adminTabs = getWorkbenchConfig('admin').tabs
 
